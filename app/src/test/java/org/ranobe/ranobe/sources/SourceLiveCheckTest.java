@@ -2,6 +2,7 @@ package org.ranobe.ranobe.sources;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 import org.ranobe.ranobe.models.Chapter;
@@ -9,8 +10,10 @@ import org.ranobe.ranobe.models.Filter;
 import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.network.HttpClient;
 import org.ranobe.ranobe.sources.en.AllNovel;
+import org.ranobe.ranobe.sources.en.NovelPing;
 import org.ranobe.ranobe.sources.ru.RanobeHub;
 import org.ranobe.ranobe.sources.en.FreeWebNovel;
+import org.ranobe.ranobe.sources.en.WtrLab;
 
 import java.util.HashMap;
 import java.util.List;
@@ -107,5 +110,43 @@ public class SourceLiveCheckTest {
         List<Novel> search = source.search(filter, 1);
         assertFalse(search.isEmpty());
         System.out.println("RH search: " + search.size() + " " + search.get(0).name + " | " + search.get(0).url + " | " + search.get(0).cover);
+    }
+
+    @Test
+    public void testWtrLab() throws Exception {
+        Source source = new WtrLab();
+        assertNotNull(source.metadata());
+        assertNotNull(SourceManager.getSources().get(21));
+
+        List<Novel> novels = source.novels(1);
+        assertFalse(novels.isEmpty());
+
+        Filter filter = new Filter();
+        filter.addFilter(Filter.FILTER_KEYWORD, "forensic");
+        List<Novel> results = source.search(filter, 1);
+        assertFalse(results.isEmpty());
+
+        Novel novel = source.details(results.get(0));
+        assertFalse(novel.name.isEmpty());
+        assertFalse(novel.summary.isEmpty());
+
+        List<Chapter> chapters = source.chapters(novel);
+        assertFalse(chapters.isEmpty());
+
+        Chapter chapter = source.chapter(chapters.get(0));
+        assertFalse(chapter.content.isEmpty());
+    }
+
+    @Test
+    public void testNovelPingCoverImages() throws Exception {
+        NovelPing source = new NovelPing();
+        List<Novel> novels = source.novels(1);
+        assertFalse(novels.isEmpty());
+        assertNotNull(novels.get(0).cover);
+        assertTrue(novels.get(0).cover.startsWith("https://"));
+
+        Novel novel = source.details(novels.get(0));
+        assertNotNull(novel.cover);
+        assertTrue(novel.cover.startsWith("https://"));
     }
 }

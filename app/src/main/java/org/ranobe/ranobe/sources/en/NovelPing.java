@@ -41,10 +41,10 @@ public class NovelPing implements Source {
         String web = page == 1
                 ? baseUrl + "/sort/popular"
                 : baseUrl + "/sort/popular?page=" + page;
-        return parse(HttpClient.GET(web, new HashMap<>()), false);
+        return parse(HttpClient.GET(web, new HashMap<>()));
     }
 
-    private List<Novel> parse(String body, boolean fromSearch) {
+    private List<Novel> parse(String body) {
         List<Novel> items = new ArrayList<>();
         Element doc = Jsoup.parse(body).select("div.list-novel").first();
 
@@ -57,9 +57,7 @@ public class NovelPing implements Source {
                 Novel item = new Novel(url);
                 item.sourceId = sourceId;
                 item.name = element.select("h3.novel-title > a").text().trim();
-
-                String imageFieldLookup = fromSearch ? "src" : "data-src";
-                item.cover = element.select("img").attr(imageFieldLookup).replace("_200_89", "");
+                item.cover = coverUrl(element.selectFirst("img")).replace("_200_89", "");
                 items.add(item);
             }
         }
@@ -73,7 +71,10 @@ public class NovelPing implements Source {
 
         novel.sourceId = sourceId;
         novel.name = doc.select("h3.title").first().text().trim();
-        novel.cover = doc.select("div.book").select("img").attr("data-src").trim();
+        novel.cover = coverUrl(doc.selectFirst("div.book img"));
+        if (novel.cover.isEmpty()) {
+            novel.cover = absoluteCoverUrl(doc.select("meta[property=og:image]").attr("content"));
+        }
 
         doc.select("div.desc-text").select("p").append("::");
         novel.summary = doc.select("div.desc-text").text().replaceAll("::", "\n\n").trim();
@@ -96,6 +97,33 @@ public class NovelPing implements Source {
         }
 
         return novel;
+    }
+
+    private String coverUrl(Element image) {
+        if (image == null) return "";
+
+        String[] attributes = {"data-src", "data-lazy-src", "data-original", "src"};
+        for (String attribute : attributes) {
+            String value = image.attr(attribute).trim();
+            if (!value.isEmpty() && !value.toLowerCase().startsWith("data:")) {
+                return absoluteCoverUrl(value);
+            }
+        }
+
+        String srcset = image.attr("srcset").trim();
+        if (!srcset.isEmpty()) {
+            String firstCandidate = srcset.split(",")[0].trim().split("\\s+")[0];
+            return absoluteCoverUrl(firstCandidate);
+        }
+        return "";
+    }
+
+    private String absoluteCoverUrl(String url) {
+        String value = url == null ? "" : url.trim();
+        if (value.isEmpty()) return "";
+        if (value.startsWith("//")) return "https:" + value;
+        if (value.startsWith("/")) return baseUrl + value;
+        return value;
     }
 
     private String getNovelId(String url) {
@@ -140,7 +168,7 @@ public class NovelPing implements Source {
         if (filters.hashKeyword()) {
             String keyword = filters.getKeyword();
             String web = SourceUtils.buildUrl(baseUrl, "/search?keyword=", keyword, "&page=", String.valueOf(page));
-            return parse(HttpClient.GET(web, new HashMap<>()), true);
+            return parse(HttpClient.GET(web, new HashMap<>()));
         }
         return new ArrayList<>();
     }
