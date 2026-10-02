@@ -57,7 +57,7 @@ public class NovelPing implements Source {
                 Novel item = new Novel(url);
                 item.sourceId = sourceId;
                 item.name = element.select("h3.novel-title > a").text().trim();
-                item.cover = coverUrl(element.selectFirst("img")).replace("_200_89", "");
+                item.cover = coverUrl(element.selectFirst("img"));
                 items.add(item);
             }
         }
@@ -123,7 +123,7 @@ public class NovelPing implements Source {
         if (value.isEmpty()) return "";
         if (value.startsWith("//")) return "https:" + value;
         if (value.startsWith("/")) return baseUrl + value;
-        return value;
+        return value.replaceFirst("/novel_\\d+_\\d+/", "/novel/");
     }
 
     private String getNovelId(String url) {
