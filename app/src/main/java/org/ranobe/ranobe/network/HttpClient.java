@@ -20,8 +20,10 @@ import okhttp3.CacheControl;
 import okhttp3.ConnectionPool;
 import okhttp3.FormBody;
 import okhttp3.Interceptor;
+import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 
@@ -99,6 +101,24 @@ public class HttpClient {
         }
         try (Response response = HttpClient.client().newCall(builder.post(formBody.build()).build()).execute()) {
             ResponseBody body = response.body();
+            return body == null ? "" : body.string();
+        }
+    }
+
+    public static String POST_JSON(String url, String json) throws IOException {
+        MediaType mediaType = MediaType.parse("application/json; charset=utf-8");
+        RequestBody requestBody = RequestBody.create(mediaType, json);
+        Request request = new Request.Builder()
+                .url(url)
+                .header("Accept", "application/json")
+                .post(requestBody)
+                .build();
+
+        try (Response response = HttpClient.client().newCall(request).execute()) {
+            ResponseBody body = response.body();
+            if (!response.isSuccessful()) {
+                throw new IOException("HTTP " + response.code() + " for " + url);
+            }
             return body == null ? "" : body.string();
         }
     }

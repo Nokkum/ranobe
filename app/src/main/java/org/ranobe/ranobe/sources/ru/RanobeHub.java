@@ -41,7 +41,7 @@ public class RanobeHub implements Source {
         source.dev = "ap-atul";
         // the site only serves an SVG icon, which Glide cannot decode
         source.logo = "https://www.google.com/s2/favicons?domain=ranobehub.org&sz=128";
-        source.isActive = true;
+        source.isActive = false;
         return source;
     }
 

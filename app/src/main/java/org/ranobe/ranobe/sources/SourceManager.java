@@ -11,13 +11,14 @@ import org.ranobe.ranobe.sources.en.LightNovelWorld;
 import org.ranobe.ranobe.sources.en.MyDramaNovel;
 import org.ranobe.ranobe.sources.en.Neovel;
 import org.ranobe.ranobe.sources.en.NewNovel;
-import org.ranobe.ranobe.sources.en.NovelBin;
+import org.ranobe.ranobe.sources.en.NovelPing;
 import org.ranobe.ranobe.sources.en.Ranobe;
 import org.ranobe.ranobe.sources.en.ReadLightNovel;
 import org.ranobe.ranobe.sources.en.ReadWebNovels;
 import org.ranobe.ranobe.sources.en.RoyalRoad;
 import org.ranobe.ranobe.sources.en.VipNovel;
 import org.ranobe.ranobe.sources.en.WordRain69;
+import org.ranobe.ranobe.sources.en.WtrLab;
 import org.ranobe.ranobe.sources.en.WuxiaWorld;
 import org.ranobe.ranobe.sources.ru.RanobeHub;
 
@@ -69,9 +70,10 @@ public class SourceManager {
         sources.put(15, LightNovelWorld.class);
         sources.put(16, FreeWebNovel.class);
         sources.put(17, WordRain69.class);
-        sources.put(18, NovelBin.class);
+        sources.put(18, NovelPing.class);
         sources.put(19, MyDramaNovel.class);
         sources.put(20, RoyalRoad.class);
+        sources.put(21, WtrLab.class);
 
         return Collections.unmodifiableMap(sources);
     }
