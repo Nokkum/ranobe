@@ -23,10 +23,17 @@ import java.util.regex.Pattern;
 public class WtrLab implements Source {
     private static final int SOURCE_ID = 21;
     private static final String BASE_URL = "https://wtr-lab.com";
+    public static final String SIGN_IN_REQUIRED_PREFIX = "WTR-LAB sign-in required";
     private static final String LANGUAGE = "en";
     private static final Pattern NOVEL_PATH = Pattern.compile("/novel/(\\d+)/([^/?#]+)");
     private static final Pattern CHAPTER_PATH = Pattern.compile("/chapter-(\\d+)");
     private static final Pattern CHAPTER_ID_QUERY = Pattern.compile("[?&]chapter_id=(\\d+)");
+    // WTR-LAB stores some names as %{shown text|base64 of the original}, e.g.
+    // "Medival %{Monster Slayer Saga|V2l0Y2hlcg}". The site shows the first part, so do the same.
+    private static final Pattern NAME_PLACEHOLDER =
+            Pattern.compile("%\\{([^{}]*)\\|[A-Za-z0-9+/_=-]*\\}");
+    // Markers look like ※11⛬. The site also uses 〓 as the closing mark and sometimes prefixes "wtr-lab ".
+    private static final Pattern GLOSSARY_MARKER = Pattern.compile("(?:wtr-lab\\s+)?※(\\d+)[⛬\\u3013]");
 
     @Override
     public DataSource metadata() {
@@ -97,7 +104,16 @@ public class WtrLab implements Source {
     @Override
     public List<Chapter> chapters(Novel novel) throws Exception {
         NovelCoordinates coordinates = coordinatesFromUrl(novel.url);
-        String response = HttpClient.GET(BASE_URL + "/api/chapters/" + coordinates.rawId, headers());
+        String response;
+        try {
+            response = HttpClient.GET_WTR_LAB_API(
+                    BASE_URL + "/api/chapters/" + coordinates.rawId,
+                    headers()
+            );
+        } catch (IOException e) {
+            if (isAuthenticationHttpError(e.getMessage())) throw signInRequired(e);
+            throw e;
+        }
         JSONObject payload = parseJson(response, "chapter list");
         JSONArray rows = payload.optJSONArray("chapters");
         List<Chapter> chapters = new ArrayList<>();
@@ -136,26 +152,39 @@ public class WtrLab implements Source {
         request.put("translate", "ai");
         request.put("language", LANGUAGE);
         request.put("raw_id", Long.parseLong(coordinates.rawId));
-        request.put("chapter_no", "chapter-" + order);
+        request.put("chapter_no", order);
+        request.put("retry", false);
+        request.put("force_retry", false);
 
         long chapterId = chapterId(chapter.url);
         if (chapterId > 0L) request.put("chapter_id", chapterId);
 
-        JSONObject response = parseJson(
-                HttpClient.POST_JSON(BASE_URL + "/api/reader/get", request.toString()),
-                "chapter content"
-        );
+        String responseBody;
+        try {
+            responseBody = HttpClient.POST_JSON_WTR_LAB_API(
+                    BASE_URL + "/api/reader/get",
+                    request.toString()
+            );
+        } catch (IOException e) {
+            if (isAuthenticationHttpError(e.getMessage())) throw signInRequired(e);
+            throw e;
+        }
+        JSONObject response = parseJson(responseBody, "chapter content");
         if (!response.optBoolean("success")) {
             String message = firstNonEmpty(stringValue(response, "error"), stringValue(response, "code"));
+            if (isAuthenticationFailureMessage(message)) throw signInRequired(null);
             throw new IOException("WTR-LAB could not load this chapter"
                     + (message.isEmpty() ? "." : ": " + message));
         }
 
-        JSONObject readerData = response.optJSONObject("data");
-        JSONObject translated = readerData == null ? null : readerData.optJSONObject("data");
-        Object body = translated == null ? null : translated.opt("body");
-        String content = bodyText(body);
-        if (content.isEmpty()) throw new IOException("WTR-LAB returned an empty chapter.");
+        // The reader API used to return the text inline (data.data.body). On 2026-10-02 it started
+        // returning an envelope with a content_url that points at the same payload. Accept both.
+        String content = payloadContent(response);
+        if (content.isEmpty()) {
+            String contentUrl = contentUrl(response);
+            if (contentUrl != null) content = fetchContent(contentUrl);
+        }
+        if (content.isEmpty()) throw noContent(response);
 
         chapter.content = content;
         JSONObject chapterInfo = response.optJSONObject("chapter");
@@ -164,6 +193,93 @@ public class WtrLab implements Source {
             chapter.updated = firstNonEmpty(stringValue(chapterInfo, "updated_at"), chapter.updated);
         }
         return chapter;
+    }
+
+    /** Chapter text from a reader payload ({data: {data: {body, glossary_data}}}), or "" if absent. */
+    static String payloadContent(JSONObject payload) {
+        if (payload == null) return "";
+        return chapterContent(payload.optJSONObject("data"), payload.optJSONObject("glossary_data"));
+    }
+
+    static String contentUrl(JSONObject response) {
+        return resolveContentUrl(stringValue(response, "content_url"));
+    }
+
+    /** Resolves the server-provided content_url against the site. Returns null for anything but HTTPS. */
+    static String resolveContentUrl(String raw) {
+        String value = raw == null ? "" : raw.trim();
+        if (value.isEmpty()) return null;
+        if (value.regionMatches(true, 0, "https://", 0, 8)) return value;
+        if (value.startsWith("//")) return "https:" + value;
+        if (value.startsWith("/")) return BASE_URL + value;
+        if (value.contains("://")) return null; // cleartext or an unexpected scheme
+        return BASE_URL + "/" + value;
+    }
+
+    private static String fetchContent(String url) throws IOException {
+        String body;
+        try {
+            body = HttpClient.GET_WTR_LAB_CONTENT(url, headers());
+        } catch (IOException e) {
+            if (isAuthenticationHttpError(e.getMessage())) throw signInRequired(e);
+            throw e;
+        }
+        JSONObject payload = parseJson(body, "chapter content");
+        if (!payload.optBoolean("success", true)) {
+            String message = firstNonEmpty(stringValue(payload, "error"), stringValue(payload, "code"));
+            if (isAuthenticationFailureMessage(message)) throw signInRequired(null);
+            throw new IOException("WTR-LAB could not load this chapter"
+                    + (message.isEmpty() ? "." : ": " + message));
+        }
+        return payloadContent(payload);
+    }
+
+    static IOException noContent(JSONObject response) {
+        JSONObject chapterInfo = response.optJSONObject("chapter");
+        if (chapterInfo != null && chapterInfo.optBoolean("locked")) return signInRequired(null);
+        List<String> fields = new ArrayList<>();
+        for (java.util.Iterator<String> keys = response.keys(); keys.hasNext(); ) fields.add(keys.next());
+        return new IOException("WTR-LAB returned no chapter content (response fields: "
+                + join(fields, ", ") + ").");
+    }
+
+    public static boolean isSignInRequired(String message) {
+        if (message == null) return false;
+        return message.toLowerCase(java.util.Locale.ROOT)
+                .startsWith(SIGN_IN_REQUIRED_PREFIX.toLowerCase(java.util.Locale.ROOT));
+    }
+
+    private static boolean isAuthenticationFailureMessage(String message) {
+        if (message == null) return false;
+        String normalized = message.toLowerCase(java.util.Locale.ROOT);
+        return normalized.contains("need_login")
+                || normalized.contains("needs_login")
+                || normalized.contains("login_required")
+                || normalized.contains("sign_in_required")
+                || normalized.contains("auth_required")
+                || normalized.contains("authentication_required")
+                || normalized.contains("unauthorized")
+                || normalized.contains("unauthenticated")
+                || normalized.contains("login required")
+                || normalized.contains("sign in required")
+                || normalized.contains("authentication required")
+                || normalized.contains("you need to login")
+                || normalized.contains("you need to log in")
+                || normalized.contains("please sign in")
+                || normalized.contains("please log in")
+                || normalized.contains("please login");
+    }
+
+    private static boolean isAuthenticationHttpError(String message) {
+        return message != null
+                && (message.startsWith("HTTP 401 ")
+                || message.startsWith("HTTP 403 ")
+                || message.startsWith("HTTP 30"));
+    }
+
+    private static IOException signInRequired(Exception cause) {
+        String message = SIGN_IN_REQUIRED_PREFIX + " to read this chapter.";
+        return cause == null ? new IOException(message) : new IOException(message, cause);
     }
 
     @Override
@@ -273,6 +389,81 @@ public class WtrLab implements Source {
         return join(paragraphs, "\n\n");
     }
 
+    static String chapterContent(JSONObject readerData) {
+        return chapterContent(readerData, null);
+    }
+
+    static String chapterContent(JSONObject readerData, JSONObject responseGlossaryData) {
+        JSONObject translated = readerData == null ? null : readerData.optJSONObject("data");
+        Object body = translated == null ? null : translated.opt("body");
+
+        JSONObject glossaryData = readerData == null ? null : readerData.optJSONObject("glossary_data");
+        if (glossaryData == null && translated != null) {
+            glossaryData = translated.optJSONObject("glossary_data");
+        }
+        if (glossaryData == null) glossaryData = responseGlossaryData;
+        return replaceGlossaryMarkers(bodyText(body), glossaryData);
+    }
+
+    static String replaceGlossaryMarkers(String content, JSONObject glossaryData) {
+        if (content == null || content.isEmpty() || glossaryData == null) return content;
+        Object terms = glossaryData.opt("terms");
+        if (terms == null || terms == JSONObject.NULL) return content;
+
+        Matcher matcher = GLOSSARY_MARKER.matcher(content);
+        StringBuffer replaced = new StringBuffer();
+        while (matcher.find()) {
+            String term;
+            try {
+                term = glossaryTerm(terms, Integer.parseInt(matcher.group(1)));
+            } catch (NumberFormatException ignored) {
+                term = null;
+            }
+            matcher.appendReplacement(
+                    replaced,
+                    Matcher.quoteReplacement(term == null ? matcher.group() : term)
+            );
+        }
+        matcher.appendTail(replaced);
+        return replaced.toString();
+    }
+
+    private static String glossaryTerm(Object terms, int index) {
+        if (index < 0) return null;
+        Object term = null;
+        String key = String.valueOf(index);
+        if (terms instanceof JSONArray) {
+            JSONArray termRows = (JSONArray) terms;
+            if (index < termRows.length()) term = termRows.opt(index);
+        } else if (terms instanceof JSONObject) {
+            term = ((JSONObject) terms).opt(key);
+        }
+        return glossaryTermText(term);
+    }
+
+    private static String glossaryTermText(Object term) {
+        if (term instanceof String) {
+            String value = ((String) term).trim();
+            return value.isEmpty() ? null : value;
+        }
+        if (term instanceof JSONArray) {
+            // WTR-LAB sends each glossary term as an array; the first entry is the text to show.
+            return glossaryTermText(((JSONArray) term).opt(0));
+        }
+        if (!(term instanceof JSONObject)) return null;
+
+        JSONObject termObject = (JSONObject) term;
+        String[] textFields = {
+                "display", "display_name", "target", "target_term", "translated_term",
+                "translation", "translated", "text", "name", "term_name", "term", "value", "label"
+        };
+        for (String field : textFields) {
+            String value = stringValue(termObject, field);
+            if (!value.isEmpty()) return value;
+        }
+        return null;
+    }
+
     private static JSONObject pageProps(String html) throws IOException {
         Element nextData = Jsoup.parse(html).selectFirst("script#__NEXT_DATA__");
         if (nextData == null) throw new IOException("WTR-LAB returned a page without novel data.");
@@ -331,7 +522,19 @@ public class WtrLab implements Source {
     private static String stringValue(JSONObject object, String key) {
         Object value = object == null ? null : object.opt(key);
         if (value == null || value == JSONObject.NULL) return "";
-        return String.valueOf(value).trim();
+        return replacePlaceholders(String.valueOf(value)).trim();
+    }
+
+    /** Replaces each %{shown|base64} placeholder with its shown text. */
+    static String replacePlaceholders(String text) {
+        if (text == null || !text.contains("%{")) return text;
+        Matcher matcher = NAME_PLACEHOLDER.matcher(text);
+        StringBuffer replaced = new StringBuffer();
+        while (matcher.find()) {
+            matcher.appendReplacement(replaced, Matcher.quoteReplacement(matcher.group(1)));
+        }
+        matcher.appendTail(replaced);
+        return replaced.toString();
     }
 
     private static String firstNonEmpty(String first, String second) {

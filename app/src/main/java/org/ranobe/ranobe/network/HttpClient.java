@@ -32,6 +32,7 @@ public class HttpClient {
     private static final String USER_AGENT = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 "
             + "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36";
     private static volatile OkHttpClient client = null;
+    private static volatile OkHttpClient wtrLabApiClient = null;
 
     private static OkHttpClient client() {
         if (client == null) {
@@ -57,6 +58,94 @@ public class HttpClient {
             }
         }
         return client;
+    }
+
+    private static OkHttpClient wtrLabApiClient() {
+        if (wtrLabApiClient == null) {
+            synchronized (HttpClient.class) {
+                if (wtrLabApiClient == null) {
+                    // Session cookies are attached by the WTR-LAB API methods below. Do not
+                    // follow redirects: an API redirect must never carry those cookies elsewhere.
+                    wtrLabApiClient = client().newBuilder()
+                            .followRedirects(false)
+                            .followSslRedirects(false)
+                            .build();
+                }
+            }
+        }
+        return wtrLabApiClient;
+    }
+
+    private static Request.Builder wtrLabApiRequest(String url) throws IOException {
+        String cookieHeader = WtrLabSession.cookieHeaderForApi(url);
+        Request.Builder builder = new Request.Builder()
+                .url(url)
+                .cacheControl(CacheControl.FORCE_NETWORK)
+                .header("Cache-Control", "no-store");
+        if (cookieHeader != null && !cookieHeader.isEmpty()) {
+            builder.header("Cookie", cookieHeader);
+        }
+        return builder;
+    }
+
+    public static String GET_WTR_LAB_API(String url, HashMap<String, String> headers) throws IOException {
+        Request.Builder builder = wtrLabApiRequest(url);
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
+            builder.header(entry.getKey(), entry.getValue());
+        }
+        try (Response response = wtrLabApiClient().newCall(builder.build()).execute()) {
+            ResponseBody body = response.body();
+            if (!response.isSuccessful()) {
+                throw new IOException("HTTP " + response.code() + " from WTR-LAB API");
+            }
+            return body == null ? "" : body.string();
+        }
+    }
+
+    /**
+     * Fetches a content URL that the WTR-LAB reader API handed back. The URL is chosen by the server, so
+     * the session is attached only to HTTPS URLs on wtr-lab.com or its subdomains and never followed
+     * through redirects; any other host is fetched without it.
+     */
+    public static String GET_WTR_LAB_CONTENT(String url, HashMap<String, String> headers) throws IOException {
+        if (!WtrLabSession.isSiteUrl(url)) return GET(url, headers);
+
+        Request.Builder builder = new Request.Builder()
+                .url(url)
+                .cacheControl(CacheControl.FORCE_NETWORK)
+                .header("Cache-Control", "no-store");
+        String cookieHeader = WtrLabSession.cookieHeaderForSite(url);
+        if (cookieHeader != null && !cookieHeader.isEmpty()) {
+            builder.header("Cookie", cookieHeader);
+        }
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
+            builder.header(entry.getKey(), entry.getValue());
+        }
+        try (Response response = wtrLabApiClient().newCall(builder.build()).execute()) {
+            ResponseBody body = response.body();
+            if (!response.isSuccessful()) {
+                throw new IOException("HTTP " + response.code() + " from WTR-LAB API");
+            }
+            return body == null ? "" : body.string();
+        }
+    }
+
+    public static String POST_JSON_WTR_LAB_API(String url, String json) throws IOException {
+        MediaType mediaType = MediaType.parse("application/json; charset=utf-8");
+        RequestBody requestBody = RequestBody.create(mediaType, json);
+        Request request = wtrLabApiRequest(url)
+                .header("Accept", "application/json")
+                .header("Origin", WtrLabSession.ORIGIN)
+                .post(requestBody)
+                .build();
+
+        try (Response response = wtrLabApiClient().newCall(request).execute()) {
+            ResponseBody body = response.body();
+            if (!response.isSuccessful()) {
+                throw new IOException("HTTP " + response.code() + " from WTR-LAB API");
+            }
+            return body == null ? "" : body.string();
+        }
     }
 
     public static String GET(String url, HashMap<String, String> headers) throws IOException {
@@ -142,7 +231,7 @@ public class HttpClient {
             try {
                 return chain.proceed(request);
             } catch (IOException e) {
-                if (!"GET".equals(request.method())) throw e;
+                if (!"GET".equals(request.method()) || request.header("Cookie") != null) throw e;
                 CacheControl staleOk = new CacheControl.Builder()
                         .onlyIfCached()
                         .maxStale(7, TimeUnit.DAYS)
@@ -163,6 +252,10 @@ public class HttpClient {
 
             // never pin error / challenge pages in the cache, they'd be served for the next 15 minutes
             if (!response.isSuccessful()) return response;
+            // Authenticated WTR-LAB API results are private and must not be cached on disk.
+            if (chain.request().header("Cookie") != null) {
+                return response.newBuilder().header("Cache-Control", "no-store").build();
+            }
 
             CacheControl cacheControl = new CacheControl.Builder()
                     .maxAge(15, TimeUnit.MINUTES) // 15 minutes cache

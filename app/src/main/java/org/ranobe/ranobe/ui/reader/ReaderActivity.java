@@ -1,6 +1,7 @@
 package org.ranobe.ranobe.ui.reader;
 
 import android.graphics.drawable.Drawable;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.GestureDetector;
 import android.view.KeyEvent;
@@ -10,6 +11,8 @@ import android.view.View;
 import android.view.animation.LinearInterpolator;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -35,11 +38,13 @@ import org.ranobe.ranobe.models.Chapter;
 import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.models.ReadHistory;
 import org.ranobe.ranobe.models.ReaderTheme;
+import org.ranobe.ranobe.sources.en.WtrLab;
 import org.ranobe.ranobe.ui.chapters.viewmodel.ChaptersViewModel;
 import org.ranobe.ranobe.ui.history.viewmodel.HistoryViewModel;
 import org.ranobe.ranobe.ui.reader.adapter.PageAdapter;
 import org.ranobe.ranobe.ui.reader.sheet.CustomizeReader;
 import org.ranobe.ranobe.ui.reader.viewmodel.ReaderViewModel;
+import org.ranobe.ranobe.ui.settings.WtrLabSignInActivity;
 import org.ranobe.ranobe.util.ListUtils;
 
 import java.util.ArrayList;
@@ -55,6 +60,11 @@ public class ReaderActivity extends AppCompatActivity implements CustomizeReader
     private ReaderViewModel readerViewModel;
     private HistoryViewModel historyViewModel;
     private List<Chapter> chapterItems = new ArrayList<>();
+    private Chapter initialChapter;
+    private Chapter failedChapter;
+    private Novel currentNovel;
+    private ChaptersViewModel chaptersViewModel;
+    private boolean chaptersNeedRetry = false;
     private ReadHistory readHistory;
     private String openedChapterUrl;
     // index in chapterItems of the last chapter appended to the page; -1 until the chapter list arrives
@@ -68,6 +78,12 @@ public class ReaderActivity extends AppCompatActivity implements CustomizeReader
     private boolean isVolumeKeyScroll = false;
     private int volumeScrollSpeed = Ranobe.DEFAULT_VOLUME_SCROLL_SPEED;
     private long lastVolumeScrollTime = 0;
+    private final ActivityResultLauncher<Intent> wtrLabSignInLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK) retryAfterWtrLabSignIn();
+            }
+    );
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -90,11 +106,13 @@ public class ReaderActivity extends AppCompatActivity implements CustomizeReader
         Chapter chapter = getIntent().getParcelableExtra(Ranobe.KEY_CHAPTER);
         @SuppressWarnings("deprecation")
         ReadHistory history = getIntent().getParcelableExtra(Ranobe.KEY_READ_HISTORY);
+        this.currentNovel = currentNovel;
+        this.initialChapter = chapter;
         readHistory = history;
         openedChapterUrl = chapter.url;
         readerViewModel = new ViewModelProvider(this).get(ReaderViewModel.class);
         historyViewModel = new ViewModelProvider(this).get(HistoryViewModel.class);
-        ChaptersViewModel chaptersViewModel = new ViewModelProvider(this).get(ChaptersViewModel.class);
+        chaptersViewModel = new ViewModelProvider(this).get(ChaptersViewModel.class);
         // chapter requests go through the current source, so pin it to the novel being read
         int sourceId = readHistory != null ? readHistory.sourceId : currentNovel != null ? currentNovel.sourceId : 0;
         if (sourceId > 0) RanobeSettings.get().setCurrentSource(sourceId).save();
@@ -108,6 +126,7 @@ public class ReaderActivity extends AppCompatActivity implements CustomizeReader
 
         // the opened chapter loads right away; the full list is only needed to find the next one
         isLoading = true;
+        failedChapter = chapter;
         binding.progress.show();
         readerViewModel.getChapter(chapter).observe(this, this::setChapter);
         readerViewModel.getError().observe(this, this::setChapterError);
@@ -203,6 +222,7 @@ public class ReaderActivity extends AppCompatActivity implements CustomizeReader
 
     private void setChapter(Chapter chapter) {
         isLoading = false;
+        failedChapter = null;
         binding.progress.hide();
         int start = adapter.appendChapter(chapter);
         lastLoadedUrl = chapter.url;
@@ -270,6 +290,13 @@ public class ReaderActivity extends AppCompatActivity implements CustomizeReader
 
     private void setError(String msg) {
         if (msg == null || msg.isEmpty()) return;
+        if (WtrLab.isSignInRequired(msg)) {
+            chaptersNeedRetry = true;
+            Snackbar.make(binding.getRoot(), R.string.wtr_lab_signin_needed, Snackbar.LENGTH_LONG)
+                    .setAction(R.string.wtr_lab_sign_in, v -> openWtrLabSignIn())
+                    .show();
+            return;
+        }
         Snackbar.make(binding.getRoot(), msg, Snackbar.LENGTH_LONG).show();
     }
 
@@ -278,12 +305,46 @@ public class ReaderActivity extends AppCompatActivity implements CustomizeReader
         if (msg == null || msg.isEmpty()) return;
         isLoading = false;
         binding.progress.hide();
-        Snackbar.make(binding.getRoot(), R.string.chapter_load_failed, Snackbar.LENGTH_LONG)
-                .setAction(R.string.retry, v -> {
-                    if (adapter.getItemCount() == 0) recreate();
-                    else loadNextChapter();
+        boolean signInRequired = WtrLab.isSignInRequired(msg);
+        Snackbar.make(
+                        binding.getRoot(),
+                        signInRequired ? R.string.wtr_lab_signin_needed : R.string.chapter_load_failed,
+                        Snackbar.LENGTH_LONG
+                )
+                .setAction(signInRequired ? R.string.wtr_lab_sign_in : R.string.retry, v -> {
+                    if (signInRequired) openWtrLabSignIn();
+                    else retryFailedChapter();
                 })
                 .show();
+    }
+
+    private void openWtrLabSignIn() {
+        wtrLabSignInLauncher.launch(new Intent(this, WtrLabSignInActivity.class));
+    }
+
+    private void retryAfterWtrLabSignIn() {
+        if (chaptersNeedRetry && chaptersViewModel != null && currentNovel != null) {
+            chaptersNeedRetry = false;
+            chaptersViewModel.getChapters(currentNovel).observe(this, this::setChapters);
+        }
+        retryFailedChapter();
+    }
+
+    private void retryFailedChapter() {
+        Chapter chapter = failedChapter;
+        if (chapter == null) {
+            if (adapter.getItemCount() == 0) {
+                chapter = initialChapter;
+            } else if (lastLoadedIndex >= 0 && lastLoadedIndex + 1 < chapterItems.size()) {
+                chapter = chapterItems.get(lastLoadedIndex + 1);
+            }
+        }
+        if (chapter == null) return;
+
+        failedChapter = chapter;
+        isLoading = true;
+        binding.progress.show();
+        readerViewModel.getChapter(chapter).observe(this, this::setChapter);
     }
 
     @Override
@@ -366,7 +427,8 @@ public class ReaderActivity extends AppCompatActivity implements CustomizeReader
         if (lastLoadedIndex + 1 < chapterItems.size()) {
             isLoading = true;
             binding.progress.show();
-            readerViewModel.getChapter(chapterItems.get(lastLoadedIndex + 1)).observe(this, this::setChapter);
+            failedChapter = chapterItems.get(lastLoadedIndex + 1);
+            readerViewModel.getChapter(failedChapter).observe(this, this::setChapter);
         } else if (!endShown) {
             endShown = true;
             adapter.appendEnd();

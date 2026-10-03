@@ -24,6 +24,39 @@
             android:name=".ui.reader.ReaderActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".ui.settings.WtrLabSignInActivity"
+            android:exported="true"
+            android:label="@string/wtr_lab_signin_title"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="wtr-lab.com"
+                    android:path="/en/auth/login" />
+                <data
+                    android:scheme="https"
+                    android:host="wtr-lab.com"
+                    android:path="/api/auth/magic-link/verify" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="wtr-lab.com"
+                    android:pathPrefix="/en/auth/magic-link" />
+                <data
+                    android:scheme="https"
+                    android:host="wtr-lab.com"
+                    android:pathPrefix="/auth/magic-link" />
+            </intent-filter>
+        </activity>
+
         <service
             android:name=".service.DownloadService"
             android:exported="false"

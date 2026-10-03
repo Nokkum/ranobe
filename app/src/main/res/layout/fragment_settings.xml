@@ -165,6 +165,24 @@
 
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- WTR-LAB session -->
+        <TextView
+            style="@style/SectionTitle"
+            android:text="@string/settings_accounts" />
+
+        <com.google.android.material.card.MaterialCardView
+            style="@style/SectionCard">
+
+            <org.ranobe.ranobe.ui.views.SettingOptionView
+                android:id="@+id/wtr_lab_account_option"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:settingIcon="@drawable/ic_account"
+                app:settingSubtitle="@string/wtr_lab_account_sub"
+                app:settingTitle="@string/wtr_lab_account" />
+
+        </com.google.android.material.card.MaterialCardView>
+
         <!-- Appearance -->
         <TextView
             style="@style/SectionTitle"

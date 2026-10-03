@@ -86,6 +86,8 @@ public class Settings extends Fragment {
 
         binding.chapterUpdatesOption.setOnClickListener(v -> handleChapterUpdatesClick());
         syncChapterUpdatesToggle();
+        binding.wtrLabAccountOption.setOnClickListener(v ->
+                startActivity(new Intent(requireContext(), WtrLabSignInActivity.class)));
 
         boolean volumeScrollEnabled = Ranobe.isVolumeKeyScrollEnabled();
         binding.volumeScrollOption.setChecked(volumeScrollEnabled);
