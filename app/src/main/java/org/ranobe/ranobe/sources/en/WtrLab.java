@@ -205,7 +205,7 @@ public class WtrLab implements Source {
         return resolveContentUrl(stringValue(response, "content_url"));
     }
 
-    /** Resolves the server-provided content_url against the site. Returns null for anything but HTTPS. */
+    // Resolves the server-provided content_url against the site. Returns null for anything but HTTPS.
     static String resolveContentUrl(String raw) {
         String value = raw == null ? "" : raw.trim();
         if (value.isEmpty()) return null;

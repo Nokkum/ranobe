@@ -6,10 +6,6 @@ import android.webkit.CookieManager;
 import java.io.IOException;
 import java.util.Locale;
 
-/**
- * Reads WTR-LAB cookies from Android's WebView cookie store only for its HTTPS API origin.
- * Cookies are never copied into app preferences or the shared OkHttp cookie jar.
- */
 public final class WtrLabSession {
     public static final String ORIGIN = "https://wtr-lab.com";
     private static final String HOST = "wtr-lab.com";
@@ -17,7 +13,7 @@ public final class WtrLabSession {
     private WtrLabSession() {
     }
 
-    /** True for HTTPS URLs on wtr-lab.com or one of its subdomains. */
+    // True for HTTPS URLs on wtr-lab.com or one of its subdomains.
     public static boolean isSiteUrl(String rawUrl) {
         Uri uri = Uri.parse(rawUrl == null ? "" : rawUrl);
         String host = uri.getHost();
@@ -32,10 +28,7 @@ public final class WtrLabSession {
         return HOST.equals(lower) || lower.endsWith("." + HOST);
     }
 
-    /**
-     * Cookies for a server-provided WTR-LAB content URL. Unlike {@link #cookieHeaderForApi} the path
-     * is not restricted to /api/, but the host still must be wtr-lab.com or a subdomain over HTTPS.
-     */
+    // Cookies for a server-provided WTR-LAB content URL.
     public static String cookieHeaderForSite(String rawUrl) throws IOException {
         if (!isSiteUrl(rawUrl)) {
             throw new IOException("Refusing to send WTR-LAB session outside its HTTPS site.");
