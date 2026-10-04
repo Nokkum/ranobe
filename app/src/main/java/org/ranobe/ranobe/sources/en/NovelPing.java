@@ -30,7 +30,7 @@ public class NovelPing implements Source {
         source.url = baseUrl;
         source.name = "Novel Ping";
         source.lang = Lang.eng;
-        source.dev = "ap-atul";
+        source.dev = "Nokkum";
         source.logo = "https://novelping.com/img/logo.png";
         source.isActive = true;
         return source;

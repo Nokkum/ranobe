@@ -53,6 +53,27 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
+    androidResources {
+        // app ships only en + ru strings; drop the ~80 other locales pulled in by appcompat/material
+        localeFilters += ["en", "ru"]
+    }
+
+    packaging {
+        resources {
+            excludes += [
+                    "META-INF/*.version",
+                    "META-INF/*.kotlin_module",
+                    "META-INF/CHANGES",
+                    "META-INF/README.md",
+                    "META-INF/LICENSE*",
+                    "META-INF/NOTICE*",
+                    "META-INF/androidx/**",
+                    "kotlin/**",
+                    "DebugProbesKt.bin",
+            ]
+        }
+    }
+
     buildFeatures {
         viewBinding true
         buildConfig true

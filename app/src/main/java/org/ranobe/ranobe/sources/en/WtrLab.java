@@ -11,6 +11,9 @@ import org.ranobe.ranobe.models.Filter;
 import org.ranobe.ranobe.models.Lang;
 import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.network.HttpClient;
+import org.ranobe.ranobe.sources.ChallengeRequiredException;
+import org.ranobe.ranobe.sources.ChapterLockedException;
+import org.ranobe.ranobe.sources.SignInRequiredException;
 import org.ranobe.ranobe.sources.Source;
 
 import java.io.IOException;
@@ -42,7 +45,7 @@ public class WtrLab implements Source {
         source.url = BASE_URL;
         source.name = "WTR-LAB";
         source.lang = Lang.eng;
-        source.dev = "Ranobe";
+        source.dev = "Nokkum";
         source.logo = BASE_URL + "/assets/favicon/favicon-96x96.png";
         source.isActive = true;
         return source;
@@ -171,10 +174,18 @@ public class WtrLab implements Source {
         }
         JSONObject response = parseJson(responseBody, "chapter content");
         if (!response.optBoolean("success")) {
-            String message = firstNonEmpty(stringValue(response, "error"), stringValue(response, "code"));
+            String message = failureMessage(response);
+            // After a burst of chapters WTR-LAB answers {"requireTurnstile":true,...} until the reader
+            // passes a Cloudflare Turnstile check, which only a browser can do.
+            if (needsChallenge(response)) throw new ChallengeRequiredException(message);
+            if (isLockedMessage(message)) throw new ChapterLockedException(message);
             if (isAuthenticationFailureMessage(message)) throw signInRequired(null);
+            // Guests only get AI translations for the first 10 chapters of a novel. The refusal carries
+            // no obvious message, so ask the server whether we are signed in before blaming the chapter.
+            if (isSignedOut()) throw signInRequired(null);
             throw new IOException("WTR-LAB could not load this chapter"
-                    + (message.isEmpty() ? "." : ": " + message));
+                    + (message.isEmpty() ? "" : ": " + message)
+                    + ". Response: " + abbreviate(response.toString(), 200));
         }
 
         // The reader API used to return the text inline (data.data.body). On 2026-10-02 it started
@@ -184,7 +195,10 @@ public class WtrLab implements Source {
             String contentUrl = contentUrl(response);
             if (contentUrl != null) content = fetchContent(contentUrl);
         }
-        if (content.isEmpty()) throw noContent(response);
+        if (content.isEmpty()) {
+            if (isSignedOut()) throw signInRequired(null);
+            throw noContent(response);
+        }
 
         chapter.content = content;
         JSONObject chapterInfo = response.optJSONObject("chapter");
@@ -205,7 +219,7 @@ public class WtrLab implements Source {
         return resolveContentUrl(stringValue(response, "content_url"));
     }
 
-    // Resolves the server-provided content_url against the site. Returns null for anything but HTTPS.
+    /** Resolves the server-provided content_url against the site. Returns null for anything but HTTPS. */
     static String resolveContentUrl(String raw) {
         String value = raw == null ? "" : raw.trim();
         if (value.isEmpty()) return null;
@@ -226,7 +240,9 @@ public class WtrLab implements Source {
         }
         JSONObject payload = parseJson(body, "chapter content");
         if (!payload.optBoolean("success", true)) {
-            String message = firstNonEmpty(stringValue(payload, "error"), stringValue(payload, "code"));
+            String message = failureMessage(payload);
+            if (needsChallenge(payload)) throw new ChallengeRequiredException(message);
+            if (isLockedMessage(message)) throw new ChapterLockedException(message);
             if (isAuthenticationFailureMessage(message)) throw signInRequired(null);
             throw new IOException("WTR-LAB could not load this chapter"
                     + (message.isEmpty() ? "." : ": " + message));
@@ -234,9 +250,30 @@ public class WtrLab implements Source {
         return payloadContent(payload);
     }
 
+    static boolean needsChallenge(JSONObject response) {
+        return response != null && response.optBoolean("requireTurnstile");
+    }
+
+    // Fast readers get the Turnstile demand above sooner; a steady pace during bulk downloads avoids some of it.
+    private static final long REQUEST_GAP_MS = 2000L;
+
+    @Override
+    public long requestGapMillis() {
+        return REQUEST_GAP_MS;
+    }
+
+    static String abbreviate(String text, int max) {
+        if (text == null) return "";
+        return text.length() <= max ? text : text.substring(0, max) + "…";
+    }
+
     static IOException noContent(JSONObject response) {
         JSONObject chapterInfo = response.optJSONObject("chapter");
-        if (chapterInfo != null && chapterInfo.optBoolean("locked")) return signInRequired(null);
+        // WTR-LAB locks AI translations past the first 50 chapters until someone unlocks them with
+        // tickets. That is not a sign-in problem, so report it separately.
+        if (chapterInfo != null && chapterInfo.optBoolean("locked")) {
+            return new ChapterLockedException("WTR-LAB has not unlocked this AI translation yet.");
+        }
         List<String> fields = new ArrayList<>();
         for (java.util.Iterator<String> keys = response.keys(); keys.hasNext(); ) fields.add(keys.next());
         return new IOException("WTR-LAB returned no chapter content (response fields: "
@@ -247,6 +284,14 @@ public class WtrLab implements Source {
         if (message == null) return false;
         return message.toLowerCase(java.util.Locale.ROOT)
                 .startsWith(SIGN_IN_REQUIRED_PREFIX.toLowerCase(java.util.Locale.ROOT));
+    }
+
+    // "locked" / "unlock_required" count; "blocked" (e.g. a Cloudflare block) and "clock" do not.
+    private static final Pattern LOCKED_MESSAGE =
+            Pattern.compile("(?<![a-z])(?:un)?lock(?:ed)?(?![a-z])", Pattern.CASE_INSENSITIVE);
+
+    static boolean isLockedMessage(String message) {
+        return message != null && LOCKED_MESSAGE.matcher(message).find();
     }
 
     private static boolean isAuthenticationFailureMessage(String message) {
@@ -278,8 +323,106 @@ public class WtrLab implements Source {
     }
 
     private static IOException signInRequired(Exception cause) {
-        String message = SIGN_IN_REQUIRED_PREFIX + " to read this chapter.";
-        return cause == null ? new IOException(message) : new IOException(message, cause);
+        return new SignInRequiredException(SIGN_IN_REQUIRED_PREFIX + " to read this chapter.", cause);
+    }
+
+    /**
+     * Asks the server whether this app's own requests carry a signed-in session. Returns true only
+     * when it is sure the answer is no; any doubt (network error, odd reply) returns false so a real
+     * failure is never blamed on sign-in.
+     */
+    private static boolean isSignedOut() {
+        try {
+            String body = HttpClient.GET_WTR_LAB_API(BASE_URL + "/api/auth/get-session", headers());
+            return Boolean.TRUE.equals(signedOutFromSessionBody(body));
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Asks WTR-LAB to end the session this app is using. Best effort: a failure is ignored, because the
+     * caller always forgets the session locally afterwards. Makes a network call, so run it off the
+     * main thread.
+     */
+    public static void endSessionOnServer() {
+        try {
+            HttpClient.POST_JSON_WTR_LAB_API(BASE_URL + "/api/auth/sign-out", "{}");
+        } catch (Exception ignored) {
+            // still signed out on this device
+        }
+    }
+
+    /** What WTR-LAB reports about the session that this app's own requests carry. */
+    public static final class SessionStatus {
+        /** TRUE = signed in, FALSE = signed out, null = could not tell. */
+        public final Boolean signedIn;
+        /** Display name when signed in and the server gave one, otherwise "". */
+        public final String name;
+
+        SessionStatus(Boolean signedIn, String name) {
+            this.signedIn = signedIn;
+            this.name = name == null ? "" : name;
+        }
+    }
+
+    /** Makes a network call, so run it off the main thread. */
+    public static SessionStatus checkSession() {
+        try {
+            String body = HttpClient.GET_WTR_LAB_API(BASE_URL + "/api/auth/get-session", headers());
+            Boolean signedOut = signedOutFromSessionBody(body);
+            if (signedOut == null) return new SessionStatus(null, "");
+            if (signedOut) return new SessionStatus(false, "");
+            return new SessionStatus(true, sessionUserName(body));
+        } catch (Exception e) {
+            return new SessionStatus(null, "");
+        }
+    }
+
+    /** The account's display name from a get-session reply. Deliberately never the e-mail address. */
+    static String sessionUserName(String body) {
+        try {
+            Object value = new org.json.JSONTokener(body == null ? "" : body.trim()).nextValue();
+            if (!(value instanceof JSONObject)) return "";
+            JSONObject user = ((JSONObject) value).optJSONObject("user");
+            if (user == null) return "";
+            for (String key : new String[]{"user_name", "username", "name"}) {
+                String text = stringValue(user, key);
+                if (!text.isEmpty()) return text;
+            }
+        } catch (org.json.JSONException ignored) {
+            // fall through
+        }
+        return "";
+    }
+
+    /** TRUE = signed out, FALSE = signed in, null = can't tell. Better Auth answers `null` when signed out. */
+    static Boolean signedOutFromSessionBody(String body) {
+        if (body == null) return null;
+        String trimmed = body.trim();
+        if (trimmed.isEmpty()) return null;
+        try {
+            Object value = new org.json.JSONTokener(trimmed).nextValue();
+            if (value == JSONObject.NULL) return Boolean.TRUE;
+            if (value instanceof JSONObject) {
+                JSONObject session = (JSONObject) value;
+                boolean hasUser = session.opt("user") != null && session.opt("user") != JSONObject.NULL;
+                boolean hasSession = session.opt("session") != null && session.opt("session") != JSONObject.NULL;
+                return !(hasUser || hasSession);
+            }
+        } catch (org.json.JSONException ignored) {
+            // not JSON (for example an HTML error page)
+        }
+        return null;
+    }
+
+    /** First non-empty text among the fields WTR-LAB might use for an error message. */
+    static String failureMessage(JSONObject response) {
+        for (String key : new String[]{"error", "message", "msg", "reason", "detail", "code"}) {
+            String text = stringValue(response, key);
+            if (!text.isEmpty()) return text;
+        }
+        return "";
     }
 
     @Override

@@ -27,6 +27,8 @@ import org.ranobe.ranobe.R;
 import org.ranobe.ranobe.config.Ranobe;
 import org.ranobe.ranobe.databinding.FragmentSettingsBinding;
 import org.ranobe.ranobe.network.repository.GithubRepo;
+import org.ranobe.ranobe.network.WtrLabSession;
+import org.ranobe.ranobe.sources.en.WtrLab;
 import org.ranobe.ranobe.ui.settings.viewmodel.SettingsViewModel;
 import org.ranobe.ranobe.ui.views.GetPro;
 import org.ranobe.ranobe.worker.ChapterUpdateScheduler;
@@ -88,6 +90,7 @@ public class Settings extends Fragment {
         syncChapterUpdatesToggle();
         binding.wtrLabAccountOption.setOnClickListener(v ->
                 startActivity(new Intent(requireContext(), WtrLabSignInActivity.class)));
+        binding.wtrLabSignOutOption.setOnClickListener(v -> confirmWtrLabSignOut());
 
         boolean volumeScrollEnabled = Ranobe.isVolumeKeyScrollEnabled();
         binding.volumeScrollOption.setChecked(volumeScrollEnabled);
@@ -132,6 +135,56 @@ public class Settings extends Fragment {
         int speed = Ranobe.getVolumeScrollSpeed();
         binding.scrollSpeedSetting.speedSlider.setValue(speed);
         binding.scrollSpeedSetting.speedLabel.setText(Ranobe.getSpeedLabel(requireContext(), speed));
+        refreshWtrLabStatus();
+    }
+
+    private void confirmWtrLabSignOut() {
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.wtr_lab_sign_out_title)
+                .setMessage(R.string.wtr_lab_sign_out_message)
+                .setPositiveButton(R.string.wtr_lab_sign_out_confirm, (dialog, i) -> signOutOfWtrLab())
+                .setNegativeButton(R.string.cancel, (dialog, i) -> dialog.dismiss())
+                .show();
+    }
+
+    private void signOutOfWtrLab() {
+        binding.wtrLabSignOutOption.setEnabled(false);
+        new Thread(() -> {
+            WtrLab.endSessionOnServer();
+            if (getActivity() == null) return;
+            getActivity().runOnUiThread(() -> {
+                WtrLabSession.clearLocal();
+                if (binding == null || !isAdded()) return;
+                binding.wtrLabSignOutOption.setEnabled(true);
+                Snackbar.make(binding.getRoot(), R.string.wtr_lab_signed_out, Snackbar.LENGTH_SHORT).show();
+                refreshWtrLabStatus();
+            });
+        }).start();
+    }
+
+    /** Shows what WTR-LAB says about the session the app's own requests carry (not just the WebView's). */
+    private void refreshWtrLabStatus() {
+        new Thread(() -> {
+            WtrLab.SessionStatus status = WtrLab.checkSession();
+            if (getActivity() == null) return;
+            getActivity().runOnUiThread(() -> {
+                if (binding == null || !isAdded()) return;
+                String text;
+                if (status.signedIn == null) {
+                    text = getString(R.string.wtr_lab_account_sub);
+                } else if (!status.signedIn) {
+                    text = getString(R.string.wtr_lab_status_signed_out);
+                } else if (status.name.isEmpty()) {
+                    text = getString(R.string.wtr_lab_status_signed_in);
+                } else {
+                    text = getString(R.string.wtr_lab_status_signed_in_as, status.name);
+                }
+                binding.wtrLabAccountOption.setSubtitle(text);
+                // Only hide the button when the server clearly says we are signed out.
+                binding.wtrLabSignOutOption.setVisibility(
+                        Boolean.FALSE.equals(status.signedIn) ? View.GONE : View.VISIBLE);
+            });
+        }).start();
     }
 
     private void release(GithubRepo.GithubRelease release) {

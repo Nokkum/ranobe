@@ -38,6 +38,8 @@ import org.ranobe.ranobe.models.Chapter;
 import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.models.ReadHistory;
 import org.ranobe.ranobe.models.ReaderTheme;
+import org.ranobe.ranobe.sources.ChallengeRequiredException;
+import org.ranobe.ranobe.sources.ChapterLockedException;
 import org.ranobe.ranobe.sources.en.WtrLab;
 import org.ranobe.ranobe.ui.chapters.viewmodel.ChaptersViewModel;
 import org.ranobe.ranobe.ui.history.viewmodel.HistoryViewModel;
@@ -45,6 +47,7 @@ import org.ranobe.ranobe.ui.reader.adapter.PageAdapter;
 import org.ranobe.ranobe.ui.reader.sheet.CustomizeReader;
 import org.ranobe.ranobe.ui.reader.viewmodel.ReaderViewModel;
 import org.ranobe.ranobe.ui.settings.WtrLabSignInActivity;
+import org.ranobe.ranobe.ui.settings.WtrLabVerifyActivity;
 import org.ranobe.ranobe.util.ListUtils;
 
 import java.util.ArrayList;
@@ -82,6 +85,12 @@ public class ReaderActivity extends AppCompatActivity implements CustomizeReader
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
                 if (result.getResultCode() == RESULT_OK) retryAfterWtrLabSignIn();
+            }
+    );
+    private final ActivityResultLauncher<Intent> wtrLabVerifyLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK) retryFailedChapter();
             }
     );
 
@@ -305,17 +314,33 @@ public class ReaderActivity extends AppCompatActivity implements CustomizeReader
         if (msg == null || msg.isEmpty()) return;
         isLoading = false;
         binding.progress.hide();
+        if (ChapterLockedException.isLocked(msg)) {
+            Snackbar.make(binding.getRoot(), R.string.chapter_locked, Snackbar.LENGTH_LONG).show();
+            return;
+        }
+        if (ChallengeRequiredException.isChallengeRequired(msg)) {
+            Snackbar.make(binding.getRoot(), R.string.wtr_lab_challenge_needed, Snackbar.LENGTH_INDEFINITE)
+                    .setTextMaxLines(4)
+                    .setAction(R.string.wtr_lab_verify, v -> openWtrLabVerify())
+                    .show();
+            return;
+        }
         boolean signInRequired = WtrLab.isSignInRequired(msg);
-        Snackbar.make(
-                        binding.getRoot(),
-                        signInRequired ? R.string.wtr_lab_signin_needed : R.string.chapter_load_failed,
-                        Snackbar.LENGTH_LONG
-                )
+        String text = signInRequired
+                ? getString(R.string.wtr_lab_signin_needed)
+                : getString(R.string.chapter_load_failed_detail, msg);
+        Snackbar.make(binding.getRoot(), text, Snackbar.LENGTH_LONG)
+                .setTextMaxLines(4)
                 .setAction(signInRequired ? R.string.wtr_lab_sign_in : R.string.retry, v -> {
                     if (signInRequired) openWtrLabSignIn();
                     else retryFailedChapter();
                 })
                 .show();
+    }
+
+    private void openWtrLabVerify() {
+        Chapter chapter = failedChapter != null ? failedChapter : initialChapter;
+        wtrLabVerifyLauncher.launch(WtrLabVerifyActivity.intent(this, chapter == null ? null : chapter.url));
     }
 
     private void openWtrLabSignIn() {

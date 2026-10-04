@@ -96,13 +96,17 @@ public class HttpClient {
         try (Response response = wtrLabApiClient().newCall(builder.build()).execute()) {
             ResponseBody body = response.body();
             if (!response.isSuccessful()) {
-                throw new IOException("HTTP " + response.code() + " from WTR-LAB API");
+                throw wtrLabFailure(response);
             }
             return body == null ? "" : body.string();
         }
     }
 
-    // Fetches a content URL that the WTR-LAB reader API handed back.
+    /**
+     * Fetches a content URL that the WTR-LAB reader API handed back. The URL is chosen by the server, so
+     * the session is attached only to HTTPS URLs on wtr-lab.com or its subdomains and never followed
+     * through redirects; any other host is fetched without it.
+     */
     public static String GET_WTR_LAB_CONTENT(String url, HashMap<String, String> headers) throws IOException {
         if (!WtrLabSession.isSiteUrl(url)) return GET(url, headers);
 
@@ -120,10 +124,19 @@ public class HttpClient {
         try (Response response = wtrLabApiClient().newCall(builder.build()).execute()) {
             ResponseBody body = response.body();
             if (!response.isSuccessful()) {
-                throw new IOException("HTTP " + response.code() + " from WTR-LAB API");
+                throw wtrLabFailure(response);
             }
             return body == null ? "" : body.string();
         }
+    }
+
+    private static IOException wtrLabFailure(Response response) {
+        String message = "HTTP " + response.code() + " from WTR-LAB API";
+        if (response.code() == 429) {
+            long wait = RateLimitedException.parseRetryAfterSeconds(response.header("Retry-After"));
+            return new RateLimitedException(message, wait);
+        }
+        return new IOException(message);
     }
 
     public static String POST_JSON_WTR_LAB_API(String url, String json) throws IOException {
@@ -138,7 +151,7 @@ public class HttpClient {
         try (Response response = wtrLabApiClient().newCall(request).execute()) {
             ResponseBody body = response.body();
             if (!response.isSuccessful()) {
-                throw new IOException("HTTP " + response.code() + " from WTR-LAB API");
+                throw wtrLabFailure(response);
             }
             return body == null ? "" : body.string();
         }

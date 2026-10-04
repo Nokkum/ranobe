@@ -24,4 +24,9 @@ public interface Source {
 
     // search novels
     List<Novel> search(Filter filters, int page) throws Exception;
+
+    // pause between chapter requests during bulk downloads, for sources that throttle fast readers
+    default long requestGapMillis() {
+        return 0;
+    }
 }

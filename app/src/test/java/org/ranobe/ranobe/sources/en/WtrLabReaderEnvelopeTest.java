@@ -8,6 +8,8 @@ import static org.junit.Assert.assertTrue;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.Test;
+import org.ranobe.ranobe.sources.ChallengeRequiredException;
+import org.ranobe.ranobe.sources.ChapterLockedException;
 
 import java.io.IOException;
 
@@ -90,13 +92,95 @@ public class WtrLabReaderEnvelopeTest {
     }
 
     @Test
-    public void lockedChapterWithNoContentAsksForSignIn() throws Exception {
+    public void lockedChapterWithNoContentIsReportedAsLockedNotAsSignIn() throws Exception {
         JSONObject envelope = new JSONObject()
                 .put("success", true)
                 .put("chapter", new JSONObject().put("locked", true));
 
         IOException error = WtrLab.noContent(envelope);
-        assertTrue(WtrLab.isSignInRequired(error.getMessage()));
+        assertTrue(error instanceof ChapterLockedException);
+        assertTrue(ChapterLockedException.isLocked(error.getMessage()));
+        assertFalse(WtrLab.isSignInRequired(error.getMessage()));
+    }
+
+    @Test
+    public void turnstileDemandFromTheServerIsRecognised() throws Exception {
+        JSONObject reply = new JSONObject("{\"success\":false,\"requireTurnstile\":true,"
+                + "\"message\":\"Please complete the Turnstile challenge to continue reading\","
+                + "\"threshold\":30,\"count\":99}");
+
+        assertTrue(WtrLab.needsChallenge(reply));
+        assertEquals("Please complete the Turnstile challenge to continue reading", WtrLab.failureMessage(reply));
+        assertFalse(WtrLab.needsChallenge(new JSONObject("{\"success\":false}")));
+        assertFalse(WtrLab.needsChallenge(new JSONObject("{\"success\":false,\"requireTurnstile\":false}")));
+        assertFalse(WtrLab.needsChallenge(null));
+    }
+
+    @Test
+    public void challengeErrorIsToldApartFromSignInAndLocked() {
+        String message = new ChallengeRequiredException("Please complete the check").getMessage();
+
+        assertTrue(ChallengeRequiredException.isChallengeRequired(message));
+        assertFalse(WtrLab.isSignInRequired(message));
+        assertFalse(ChapterLockedException.isLocked(message));
+        assertFalse(ChallengeRequiredException.isChallengeRequired("WTR-LAB sign-in required to read this chapter."));
+        assertFalse(ChallengeRequiredException.isChallengeRequired(null));
+    }
+
+    @Test
+    public void wtrLabAsksForASteadyPaceDuringBulkDownloads() {
+        assertTrue(new WtrLab().requestGapMillis() > 0);
+    }
+
+    @Test
+    public void sessionReplyTellsSignedInFromSignedOut() {
+        assertEquals(Boolean.TRUE, WtrLab.signedOutFromSessionBody("null"));
+        assertEquals(Boolean.TRUE, WtrLab.signedOutFromSessionBody(" null \n"));
+        assertEquals(Boolean.TRUE, WtrLab.signedOutFromSessionBody("{}"));
+        assertEquals(Boolean.FALSE, WtrLab.signedOutFromSessionBody("{\"session\":{\"id\":\"1\"},\"user\":{\"id\":\"2\"}}"));
+        assertEquals(Boolean.FALSE, WtrLab.signedOutFromSessionBody("{\"user\":{\"id\":\"2\"}}"));
+    }
+
+    @Test
+    public void sessionUserNameNeverFallsBackToTheEmailAddress() {
+        assertEquals("Mira", WtrLab.sessionUserName("{\"user\":{\"user_name\":\"Mira\",\"email\":\"m@example.com\"}}"));
+        assertEquals("Mira K", WtrLab.sessionUserName("{\"user\":{\"name\":\"Mira K\"}}"));
+        assertEquals("", WtrLab.sessionUserName("{\"user\":{\"email\":\"m@example.com\"}}"));
+        assertEquals("", WtrLab.sessionUserName("null"));
+        assertEquals("", WtrLab.sessionUserName(null));
+    }
+
+    @Test
+    public void unreadableSessionReplyIsNotTreatedAsSignedOut() {
+        assertNull(WtrLab.signedOutFromSessionBody(null));
+        assertNull(WtrLab.signedOutFromSessionBody(""));
+        assertNull(WtrLab.signedOutFromSessionBody("<html>Just a moment...</html>"));
+        assertNull(WtrLab.signedOutFromSessionBody("[1,2]"));
+    }
+
+    @Test
+    public void failureMessageReadsTheUsualFieldsAndSkipsEmptyOnes() throws Exception {
+        assertEquals("need login", WtrLab.failureMessage(new JSONObject().put("message", "need login")));
+        assertEquals("boom", WtrLab.failureMessage(new JSONObject().put("error", "").put("msg", "boom")));
+        assertEquals("", WtrLab.failureMessage(new JSONObject().put("success", false)));
+    }
+
+    @Test
+    public void longTextIsAbbreviated() {
+        assertEquals("abc", WtrLab.abbreviate("abc", 5));
+        assertEquals("abcde…", WtrLab.abbreviate("abcdefgh", 5));
+    }
+
+    @Test
+    public void lockedWordInAnApiErrorIsRecognised() {
+        assertTrue(WtrLab.isLockedMessage("chapter_locked"));
+        assertTrue(WtrLab.isLockedMessage("This chapter is Locked"));
+        assertTrue(WtrLab.isLockedMessage("unlock_required"));
+        assertFalse(WtrLab.isLockedMessage("Access blocked by security check"));
+        assertFalse(WtrLab.isLockedMessage("clock skew"));
+        assertFalse(WtrLab.isLockedMessage("need_login"));
+        assertFalse(WtrLab.isLockedMessage(""));
+        assertFalse(WtrLab.isLockedMessage(null));
     }
 
     @Test

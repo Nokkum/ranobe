@@ -343,11 +343,14 @@ public class Chapters extends BottomSheetDialogFragment implements ChapterAdapte
 
     @SuppressLint("NotifyDataSetChanged")
     private void doDownloadAll() {
+        // Oldest first, whatever order the list is shown in: sources such as WTR-LAB unlock the first
+        // chapters for everyone, so those should be fetched before anything that may be locked.
+        List<Chapter> wanted = new ArrayList<>();
         for (Chapter chapter : originalItems) {
-            if (!downloadedUrls.contains(chapter.url)) {
-                DownloadService.enqueue(requireContext(), chapter, novel.sourceId);
-            }
+            if (!downloadedUrls.contains(chapter.url)) wanted.add(chapter);
         }
+        Collections.sort(wanted, (a, b) -> Float.compare(a.id, b.id));
+        DownloadService.enqueueAll(requireContext(), wanted, novel.sourceId);
         adapter.notifyDataSetChanged();
     }
 

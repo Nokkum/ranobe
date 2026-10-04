@@ -25,6 +25,11 @@
             android:exported="false" />
 
         <activity
+            android:name=".ui.settings.WtrLabVerifyActivity"
+            android:exported="false"
+            android:label="@string/wtr_lab_verify_title" />
+
+        <activity
             android:name=".ui.settings.WtrLabSignInActivity"
             android:exported="true"
             android:label="@string/wtr_lab_signin_title"

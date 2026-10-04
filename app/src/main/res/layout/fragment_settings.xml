@@ -173,13 +173,28 @@
         <com.google.android.material.card.MaterialCardView
             style="@style/SectionCard">
 
-            <org.ranobe.ranobe.ui.views.SettingOptionView
-                android:id="@+id/wtr_lab_account_option"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:settingIcon="@drawable/ic_account"
-                app:settingSubtitle="@string/wtr_lab_account_sub"
-                app:settingTitle="@string/wtr_lab_account" />
+                android:orientation="vertical">
+
+                <org.ranobe.ranobe.ui.views.SettingOptionView
+                    android:id="@+id/wtr_lab_account_option"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:settingIcon="@drawable/ic_account"
+                    app:settingSubtitle="@string/wtr_lab_account_sub"
+                    app:settingTitle="@string/wtr_lab_account" />
+
+                <org.ranobe.ranobe.ui.views.SettingOptionView
+                    android:id="@+id/wtr_lab_sign_out_option"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:settingIcon="@drawable/ic_logout"
+                    app:settingSubtitle="@string/wtr_lab_sign_out_sub"
+                    app:settingTitle="@string/wtr_lab_sign_out" />
+
+            </LinearLayout>
 
         </com.google.android.material.card.MaterialCardView>
 

@@ -21,6 +21,10 @@ public class Repository {
     }
 
     // novels opened from old history rows may not carry a source id; fall back to the current one
+    public long requestGapMillis() {
+        return source.requestGapMillis();
+    }
+
     public Repository(int sourceId) {
         this.source = SourceManager.getSource(sourceId > 0 ? sourceId : RanobeSettings.get().getCurrentSource());
     }

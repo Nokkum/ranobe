@@ -32,6 +32,9 @@ public class WtrLabSignInActivity extends AppCompatActivity {
     private static final String SITE_HOST = "wtr-lab.com";
     private static final String LOGIN_URL = "https://wtr-lab.com/en/auth/login?callbackUrl=%2Fen";
     private static final String LOGIN_CALLBACK_PATH = "/en";
+    // evaluateJavascript() returns the script's value immediately and never awaits a Promise, so an
+    // async/fetch version always reported "{}" (never "true"). A synchronous same-origin request
+    // gives the callback a real boolean. The response is `null` when signed out.
     private static final String SESSION_CHECK_SCRIPT =
             "(function(){try{var x=new XMLHttpRequest();"
                     + "x.open('GET','/api/auth/get-session',false);"
