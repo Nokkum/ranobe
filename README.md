@@ -87,8 +87,7 @@
 
 #### could have
 
-- [x] advanced search techniques
-- [x] advanced search capabilities
+- [ ] advanced search techniques
 - [ ] source management tools ?
 - [ ] export into x formats
 - [ ] metrics if possible
