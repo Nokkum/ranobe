@@ -1,0 +1,86 @@
+[
+ {
+  "id": 45094,
+  "modified": "2026-10-04T22:30:37",
+  "slug": "worthless-profession-dragon-tamer",
+  "link": "https://www.divinedaolibrary.com/story/worthless-profession-dragon-tamer/",
+  "title": {
+   "rendered": "Worthless Profession: Dragon Tamer"
+  },
+  "_embedded": {
+   "wp:featuredmedia": [
+    {
+     "id": 45100,
+     "slug": "cover",
+     "type": "attachment",
+     "media_type": "image",
+     "mime_type": "image/jpeg",
+     "media_details": {
+      "width": 400,
+      "height": 600,
+      "file": "2025/02/Cover.jpg",
+      "sizes": {
+       "medium": {
+        "file": "Cover-200x300.jpg",
+        "width": 200,
+        "height": 300,
+        "source_url": "https://www.divinedaolibrary.com/wp-content/uploads/2025/02/Cover-200x300.jpg"
+       },
+       "full": {
+        "file": "Cover.jpg",
+        "width": 400,
+        "height": 600,
+        "source_url": "https://www.divinedaolibrary.com/wp-content/uploads/2025/02/Cover.jpg"
+       }
+      }
+     },
+     "source_url": "https://www.divinedaolibrary.com/wp-content/uploads/2025/02/Cover.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "id": 51522,
+  "modified": "2026-01-04T00:30:43",
+  "slug": "among-the-dungeon-streamers",
+  "link": "https://www.divinedaolibrary.com/story/among-the-dungeon-streamers/",
+  "title": {
+   "rendered": "Among the Dungeon Streamers, for Some Reason I&#8217;m the Only One &amp; Only"
+  },
+  "_embedded": {
+   "wp:featuredmedia": [
+    {
+     "id": 45100,
+     "slug": "cover",
+     "type": "attachment",
+     "media_type": "image",
+     "mime_type": "image/jpeg",
+     "media_details": {
+      "width": 400,
+      "height": 600,
+      "file": "2025/02/Cover.jpg"
+     },
+     "source_url": "https://www.divinedaolibrary.com/wp-content/uploads/2025/02/Cover.jpg"
+    }
+   ]
+  }
+ },
+ {
+  "id": 45220,
+  "modified": "2026-10-04T21:30:33",
+  "slug": "alchemy-master",
+  "link": "https://www.divinedaolibrary.com/story/alchemy-master/",
+  "title": {
+   "rendered": "Alchemy Master"
+  }
+ },
+ {
+  "id": 1,
+  "modified": "2026-01-01T00:00:00",
+  "slug": "no-link",
+  "link": "",
+  "title": {
+   "rendered": "Skipped: no link"
+  }
+ }
+]

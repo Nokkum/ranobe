@@ -3,6 +3,7 @@ package org.ranobe.ranobe.sources;
 import org.ranobe.ranobe.sources.en.AllNovel;
 import org.ranobe.ranobe.sources.en.AzyNovel;
 import org.ranobe.ranobe.sources.en.BoxNovel;
+import org.ranobe.ranobe.sources.en.DivineDaoLibrary;
 import org.ranobe.ranobe.sources.en.FreeWebNovel;
 import org.ranobe.ranobe.sources.en.LightNovelBtt;
 import org.ranobe.ranobe.sources.en.LightNovelHeaven;
@@ -74,6 +75,7 @@ public class SourceManager {
         sources.put(19, MyDramaNovel.class);
         sources.put(20, RoyalRoad.class);
         sources.put(21, WtrLab.class);
+        sources.put(22, DivineDaoLibrary.class);
 
         return Collections.unmodifiableMap(sources);
     }

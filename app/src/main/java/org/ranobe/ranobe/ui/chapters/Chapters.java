@@ -31,6 +31,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.snackbar.Snackbar;
 
 import org.ranobe.ranobe.R;
 import org.ranobe.ranobe.config.Ranobe;
@@ -46,6 +47,7 @@ import org.ranobe.ranobe.ui.error.Error;
 import org.ranobe.ranobe.ui.history.viewmodel.HistoryViewModel;
 import org.ranobe.ranobe.ui.reader.ReaderActivity;
 import org.ranobe.ranobe.ui.views.RecyclerSwipeHelper;
+import org.ranobe.ranobe.util.DownloadCleaner;
 import org.ranobe.ranobe.util.ListUtils;
 
 import java.util.ArrayList;
@@ -70,6 +72,7 @@ public class Chapters extends BottomSheetDialogFragment implements ChapterAdapte
             if (url != null && DownloadService.ACTION_DOWNLOAD_COMPLETE.equals(intent.getAction())) {
                 downloadedUrls.add(url);
                 adapter.setDownloadedUrls(new HashSet<>(downloadedUrls));
+                updateDeleteDownloadsVisibility();
             } else if (url != null) {
                 // failed — just refresh to remove the pending spinner
                 adapter.notifyDataSetChanged();
@@ -160,6 +163,7 @@ public class Chapters extends BottomSheetDialogFragment implements ChapterAdapte
             requireActivity().runOnUiThread(() -> {
                 if (!isAdded()) return;
                 adapter.setDownloadedUrls(new HashSet<>(downloadedUrls));
+                updateDeleteDownloadsVisibility();
             });
         });
     }
@@ -321,8 +325,46 @@ public class Chapters extends BottomSheetDialogFragment implements ChapterAdapte
             setSearchView();
         } else if (id == R.id.download_all) {
             downloadAll();
+        } else if (id == R.id.delete_downloads) {
+            confirmDeleteDownloads();
         }
         return true;
+    }
+
+    // The delete button only exists while this novel has downloaded chapters.
+    private void updateDeleteDownloadsVisibility() {
+        if (binding == null) return;
+        MenuItem item = binding.toolbar.getMenu().findItem(R.id.delete_downloads);
+        if (item != null) item.setVisible(!downloadedUrls.isEmpty());
+    }
+
+    private void confirmDeleteDownloads() {
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.delete_downloads)
+                .setMessage(getString(R.string.delete_downloads_confirmation, downloadedUrls.size()))
+                .setPositiveButton(R.string.delete_downloads_confirm, (dialog, i) -> deleteDownloads())
+                .setNegativeButton(android.R.string.cancel, (dialog, i) -> dialog.dismiss())
+                .show();
+    }
+
+    private void deleteDownloads() {
+        final Context appContext = requireContext().getApplicationContext();
+        final String novelUrl = novel.url;
+        RanobeDatabase.databaseExecutor.execute(() -> {
+            int removed = DownloadCleaner.deleteNovelDownloads(appContext, novelUrl);
+            if (!isAdded()) return;
+            requireActivity().runOnUiThread(() -> onDownloadsDeleted(removed));
+        });
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    private void onDownloadsDeleted(int removed) {
+        if (!isAdded() || binding == null) return;
+        downloadedUrls.clear();
+        adapter.setDownloadedUrls(new HashSet<>());
+        adapter.notifyDataSetChanged();
+        updateDeleteDownloadsVisibility();
+        Snackbar.make(binding.getRoot(), getString(R.string.downloads_deleted, removed), Snackbar.LENGTH_SHORT).show();
     }
 
     private void downloadAll() {

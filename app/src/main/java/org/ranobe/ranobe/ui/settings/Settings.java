@@ -162,7 +162,7 @@ public class Settings extends Fragment {
         }).start();
     }
 
-    /** Shows what WTR-LAB says about the session the app's own requests carry (not just the WebView's). */
+    // Shows what WTR-LAB says about the session the app's own requests carry (not just the WebView's).
     private void refreshWtrLabStatus() {
         new Thread(() -> {
             WtrLab.SessionStatus status = WtrLab.checkSession();

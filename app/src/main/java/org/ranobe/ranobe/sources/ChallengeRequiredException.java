@@ -13,7 +13,7 @@ public class ChallengeRequiredException extends IOException {
         super(detail == null || detail.isEmpty() ? PREFIX : PREFIX + ": " + detail);
     }
 
-    /** Lets code that only has an error message (such as the reader) recognise this error. */
+    // Lets code that only has an error message (such as the reader) recognise this error.
     public static boolean isChallengeRequired(String message) {
         return message != null && message.startsWith(PREFIX);
     }

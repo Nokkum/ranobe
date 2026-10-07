@@ -100,6 +100,24 @@ public class NovelAdapter extends RecyclerView.Adapter<NovelAdapter.MyViewHolder
                 .centerCrop()
                 .transition(DrawableTransitionOptions.withCrossFade())
                 .into(holder.cover);
+
+        // The click handlers are set here, not when the holder is created. A holder can be handed to a
+        // different adapter through a shared RecycledViewPool (Search shares one between its rows), and
+        // handlers set at creation would then read the creating adapter's list: the tap opened a novel
+        // from another row.
+        holder.coverLayout.setOnClickListener(v -> {
+            int current = holder.getAdapterPosition();
+            if (current != RecyclerView.NO_POSITION && current < items.size())
+                listener.onNovelItemClick(items.get(current));
+        });
+        holder.coverLayout.setOnLongClickListener(v -> {
+            int current = holder.getAdapterPosition();
+            if (longClickListener != null && current != RecyclerView.NO_POSITION && current < items.size()) {
+                longClickListener.onNovelLongClick(items.get(current));
+                return true;
+            }
+            return false;
+        });
     }
 
     @Override
@@ -116,28 +134,15 @@ public class NovelAdapter extends RecyclerView.Adapter<NovelAdapter.MyViewHolder
     }
 
     public class MyViewHolder extends RecyclerView.ViewHolder {
+        private final View coverLayout;
         private final ImageView cover;
         private final TextView name;
 
         public MyViewHolder(@NonNull View root, View coverLayout, ImageView cover, TextView name) {
             super(root);
+            this.coverLayout = coverLayout;
             this.cover = cover;
             this.name = name;
-
-            coverLayout.setOnClickListener(v -> {
-                int position = getAdapterPosition();
-                if (position != RecyclerView.NO_POSITION)
-                    listener.onNovelItemClick(items.get(position));
-            });
-
-            coverLayout.setOnLongClickListener(v -> {
-                int position = getAdapterPosition();
-                if (longClickListener != null && position != RecyclerView.NO_POSITION) {
-                    longClickListener.onNovelLongClick(items.get(position));
-                    return true;
-                }
-                return false;
-            });
         }
     }
 }

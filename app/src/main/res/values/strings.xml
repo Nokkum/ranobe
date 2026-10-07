@@ -138,4 +138,8 @@
     <string name="wtr_lab_sign_out_message">Chapters you already downloaded stay on this device. You can sign in again at any time.</string>
     <string name="wtr_lab_sign_out_confirm">Sign out</string>
     <string name="wtr_lab_signed_out">Signed out of WTR-LAB</string>
+    <string name="delete_downloads">Delete downloads</string>
+    <string name="delete_downloads_confirmation">Delete the %1$d downloaded chapters of this novel from this device? You can download them again later. Reading progress is kept.</string>
+    <string name="delete_downloads_confirm">Delete</string>
+    <string name="downloads_deleted">Deleted %1$d downloaded chapters</string>
 </resources>

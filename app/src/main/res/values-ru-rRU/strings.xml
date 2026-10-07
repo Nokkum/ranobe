@@ -139,4 +139,8 @@
     <string name="wtr_lab_sign_out_message">Уже загруженные главы останутся на устройстве. Войти снова можно в любой момент.</string>
     <string name="wtr_lab_sign_out_confirm">Выйти</string>
     <string name="wtr_lab_signed_out">Вы вышли из WTR-LAB</string>
+    <string name="delete_downloads">Удалить загрузки</string>
+    <string name="delete_downloads_confirmation">Удалить с устройства загруженные главы этой новеллы (%1$d)? Их можно загрузить снова. Прогресс чтения сохранится.</string>
+    <string name="delete_downloads_confirm">Удалить</string>
+    <string name="downloads_deleted">Удалено загруженных глав: %1$d</string>
 </resources>

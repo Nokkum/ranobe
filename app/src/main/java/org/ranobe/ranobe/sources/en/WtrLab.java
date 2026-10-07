@@ -209,7 +209,7 @@ public class WtrLab implements Source {
         return chapter;
     }
 
-    /** Chapter text from a reader payload ({data: {data: {body, glossary_data}}}), or "" if absent. */
+    // Chapter text from a reader payload ({data: {data: {body, glossary_data}}}), or "" if absent.
     static String payloadContent(JSONObject payload) {
         if (payload == null) return "";
         return chapterContent(payload.optJSONObject("data"), payload.optJSONObject("glossary_data"));
@@ -219,7 +219,7 @@ public class WtrLab implements Source {
         return resolveContentUrl(stringValue(response, "content_url"));
     }
 
-    /** Resolves the server-provided content_url against the site. Returns null for anything but HTTPS. */
+    // Resolves the server-provided content_url against the site. Returns null for anything but HTTPS.
     static String resolveContentUrl(String raw) {
         String value = raw == null ? "" : raw.trim();
         if (value.isEmpty()) return null;
@@ -353,11 +353,11 @@ public class WtrLab implements Source {
         }
     }
 
-    /** What WTR-LAB reports about the session that this app's own requests carry. */
+    // What WTR-LAB reports about the session that this app's own requests carry.
     public static final class SessionStatus {
-        /** TRUE = signed in, FALSE = signed out, null = could not tell. */
+        // TRUE = signed in, FALSE = signed out, null = could not tell.
         public final Boolean signedIn;
-        /** Display name when signed in and the server gave one, otherwise "". */
+        // Display name when signed in and the server gave one, otherwise "".
         public final String name;
 
         SessionStatus(Boolean signedIn, String name) {
@@ -366,7 +366,7 @@ public class WtrLab implements Source {
         }
     }
 
-    /** Makes a network call, so run it off the main thread. */
+    // Makes a network call, so run it off the main thread.
     public static SessionStatus checkSession() {
         try {
             String body = HttpClient.GET_WTR_LAB_API(BASE_URL + "/api/auth/get-session", headers());
@@ -379,7 +379,7 @@ public class WtrLab implements Source {
         }
     }
 
-    /** The account's display name from a get-session reply. Deliberately never the e-mail address. */
+    // The account's display name from a get-session reply. Deliberately never the e-mail address.
     static String sessionUserName(String body) {
         try {
             Object value = new org.json.JSONTokener(body == null ? "" : body.trim()).nextValue();
@@ -396,7 +396,7 @@ public class WtrLab implements Source {
         return "";
     }
 
-    /** TRUE = signed out, FALSE = signed in, null = can't tell. Better Auth answers `null` when signed out. */
+    // TRUE = signed out, FALSE = signed in, null = can't tell. Better Auth answers `null` when signed out.
     static Boolean signedOutFromSessionBody(String body) {
         if (body == null) return null;
         String trimmed = body.trim();
@@ -416,7 +416,7 @@ public class WtrLab implements Source {
         return null;
     }
 
-    /** First non-empty text among the fields WTR-LAB might use for an error message. */
+    // First non-empty text among the fields WTR-LAB might use for an error message.
     static String failureMessage(JSONObject response) {
         for (String key : new String[]{"error", "message", "msg", "reason", "detail", "code"}) {
             String text = stringValue(response, key);

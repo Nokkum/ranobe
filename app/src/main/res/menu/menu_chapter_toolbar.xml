@@ -16,6 +16,15 @@
         app:iconTint="?colorOnSurfaceVariant"
         app:showAsAction="ifRoom" />
 
+    <!-- Shown only while the novel has downloaded chapters. -->
+    <item
+        android:id="@+id/delete_downloads"
+        android:icon="@drawable/ic_delete"
+        android:title="@string/delete_downloads"
+        android:visible="false"
+        app:iconTint="?colorOnSurfaceVariant"
+        app:showAsAction="ifRoom" />
+
     <item
         android:id="@+id/download_all"
         android:icon="@drawable/ic_download"

@@ -102,11 +102,7 @@ public class HttpClient {
         }
     }
 
-    /**
-     * Fetches a content URL that the WTR-LAB reader API handed back. The URL is chosen by the server, so
-     * the session is attached only to HTTPS URLs on wtr-lab.com or its subdomains and never followed
-     * through redirects; any other host is fetched without it.
-     */
+    // Fetches a content URL that the WTR-LAB reader API handed back.
     public static String GET_WTR_LAB_CONTENT(String url, HashMap<String, String> headers) throws IOException {
         if (!WtrLabSession.isSiteUrl(url)) return GET(url, headers);
 

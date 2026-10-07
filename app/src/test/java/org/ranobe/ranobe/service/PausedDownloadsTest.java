@@ -53,6 +53,21 @@ public class PausedDownloadsTest {
     }
 
     @Test
+    public void deletingOneNovelKeepsThePausedChaptersOfOthers() {
+        List<PausedDownloads.Entry> entries = new ArrayList<>();
+        entries.add(new PausedDownloads.Entry("a1", "novel-a", "A1", 1f, 21));
+        entries.add(new PausedDownloads.Entry("b1", "novel-b", "B1", 1f, 21));
+        entries.add(new PausedDownloads.Entry("a2", "novel-a", "A2", 2f, 21));
+
+        List<PausedDownloads.Entry> kept = PausedDownloads.withoutNovel(entries, "novel-a");
+
+        assertEquals(1, kept.size());
+        assertEquals("b1", kept.get(0).url);
+        assertEquals(3, PausedDownloads.withoutNovel(entries, "other").size());
+        assertTrue(PausedDownloads.withoutNovel(new ArrayList<>(), "novel-a").isEmpty());
+    }
+
+    @Test
     public void restoredEntryBecomesAChapterTheSourceCanFetch() {
         PausedDownloads.Entry entry = new PausedDownloads.Entry("url", "novel", "Name", 7f, 21);
 

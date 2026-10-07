@@ -11,10 +11,8 @@ import org.ranobe.ranobe.models.Chapter;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Chapters that a batch download could not fetch because the source asked for a human check. They are
- * kept on disk, so the batch can continue after the check even if the app process was killed meanwhile.
- */
+// Chapters that a batch download could not fetch because the source asked for a human check. They are
+// kept on disk, so the batch can continue after the check even if the app process was killed meanwhile.
 final class PausedDownloads {
     private static final String PREFS = "paused_downloads";
     private static final String KEY = "items";
@@ -68,7 +66,7 @@ final class PausedDownloads {
         return array.toString();
     }
 
-    /** Never throws: unreadable input gives an empty list, and entries without a URL are skipped. */
+    // Never throws: unreadable input gives an empty list, and entries without a URL are skipped.
     static List<Entry> fromJson(String json) {
         List<Entry> entries = new ArrayList<>();
         if (json == null || json.isEmpty()) return entries;
@@ -97,12 +95,32 @@ final class PausedDownloads {
         prefs(context).edit().putString(KEY, toJson(entries)).apply();
     }
 
-    /** Returns the saved chapters and forgets them. */
+    // Returns the saved chapters and forgets them.
     static List<Entry> take(Context context) {
         SharedPreferences prefs = prefs(context);
         List<Entry> entries = fromJson(prefs.getString(KEY, null));
         prefs.edit().remove(KEY).apply();
         return entries;
+    }
+
+    // The entries that do not belong to {@code novelUrl}.
+    static List<Entry> withoutNovel(List<Entry> entries, String novelUrl) {
+        List<Entry> kept = new ArrayList<>();
+        for (Entry entry : entries) {
+            if (!entry.novelUrl.equals(novelUrl)) kept.add(entry);
+        }
+        return kept;
+    }
+
+    // Forgets the paused chapters of one novel and keeps the rest.
+    static void dropNovel(Context context, String novelUrl) {
+        SharedPreferences prefs = prefs(context);
+        List<Entry> kept = withoutNovel(fromJson(prefs.getString(KEY, null)), novelUrl);
+        if (kept.isEmpty()) {
+            prefs.edit().remove(KEY).apply();
+        } else {
+            prefs.edit().putString(KEY, toJson(kept)).apply();
+        }
     }
 
     static void clear(Context context) {

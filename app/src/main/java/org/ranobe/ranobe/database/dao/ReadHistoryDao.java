@@ -16,6 +16,9 @@ public interface ReadHistoryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void save(ReadHistory chapter);
 
+    @Query("SELECT COUNT(*) FROM readhistory WHERE instr(content, :needle) > 0")
+    int countReferencing(String needle);
+
     @Query("SELECT * FROM readhistory WHERE novelUrl=:novelUrl ORDER BY timestamp DESC")
     LiveData<List<ReadHistory>> listByUrl(String novelUrl);
 
@@ -25,8 +28,7 @@ public interface ReadHistoryDao {
     @Query("SELECT * FROM readhistory where novelUrl=:novelUrl ORDER BY timestamp DESC LIMIT 1")
     LiveData<ReadHistory> getLastReadNovel(String novelUrl);
 
-    // latest row of each novel; matching timestamps per novel (not globally) so another novel's
-    // older row with the same timestamp can't slip in. Chapter text isn't needed for the list.
+    // latest row of each novel; matching timestamps per novel (not globally)
     @Query("SELECT url, novelUrl, NULL AS content, name, updated, id, position, readerOffset, timestamp, cover, novelName, sourceId " +
             "FROM readhistory r WHERE timestamp = (SELECT MAX(timestamp) FROM readhistory WHERE novelUrl = r.novelUrl) " +
             "GROUP BY novelUrl ORDER BY timestamp DESC LIMIT 100")

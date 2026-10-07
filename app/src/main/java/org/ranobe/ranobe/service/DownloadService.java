@@ -28,6 +28,7 @@ import org.ranobe.ranobe.util.ChapterImages;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
@@ -77,7 +78,7 @@ public class DownloadService extends Service {
         context.startService(new Intent(context, DownloadService.class));
     }
 
-    /** Queues many chapters with a single service start (a large "download all" used to start it per chapter). */
+    // Queues many chapters with a single service start (a large "download all" used to start it per chapter).
     public static void enqueueAll(Context context, List<Chapter> chapters, int sourceId) {
         boolean added = false;
         for (Chapter chapter : chapters) {
@@ -89,11 +90,7 @@ public class DownloadService extends Service {
         if (added) context.startService(new Intent(context, DownloadService.class));
     }
 
-    /**
-     * Continues the chapters that stopped at a human check. Call it once the user has passed the check.
-     * If the check did not really take, the first chapter hits it again and the batch pauses again,
-     * so this cannot loop. Returns how many chapters were queued.
-     */
+    // Continues the chapters that stopped at a human check.
     public static int resumeAfterChallenge(Context context) {
         List<PausedDownloads.Entry> paused = PausedDownloads.take(context);
         int queued = 0;
@@ -110,6 +107,21 @@ public class DownloadService extends Service {
             context.startService(new Intent(context, DownloadService.class));
         }
         return queued;
+    }
+
+    // Drops the queued and paused chapters of one novel. Returns how many queued chapters were dropped.
+    public static int cancelPending(Context context, String novelUrl) {
+        int removed = 0;
+        for (Iterator<DownloadItem> it = queue.iterator(); it.hasNext(); ) {
+            DownloadItem item = it.next();
+            if (novelUrl.equals(item.chapter.novelUrl)) {
+                it.remove();
+                pendingUrls.remove(item.chapter.url);
+                removed++;
+            }
+        }
+        PausedDownloads.dropNovel(context, novelUrl);
+        return removed;
     }
 
     public static boolean isPending(String chapterUrl) {
@@ -248,7 +260,7 @@ public class DownloadService extends Service {
 
     private boolean rateLimitedDuringItem = false;
 
-    /** Downloads one chapter, waiting and retrying when the server says to slow down (HTTP 429). */
+    // Downloads one chapter, waiting and retrying when the server says to slow down (HTTP 429).
     private Chapter downloadWithBackoff(DownloadItem item, int remaining) throws Exception {
         rateLimitedDuringItem = false;
         int hits = 0;
@@ -264,7 +276,7 @@ public class DownloadService extends Service {
         }
     }
 
-    /** Keeps the chapter that hit the check and everything still queued, to continue after the check. */
+    // Keeps the chapter that hit the check and everything still queued, to continue after the check.
     private void pauseQueueForChallenge() {
         List<PausedDownloads.Entry> paused = new ArrayList<>();
         if (challengeItem != null) {
@@ -281,7 +293,7 @@ public class DownloadService extends Service {
         PausedDownloads.save(this, paused);
     }
 
-    /** Drops everything still queued so the batch ends cleanly instead of failing chapter by chapter. */
+    // Drops everything still queued so the batch ends cleanly instead of failing chapter by chapter.
     private void abandonQueue() {
         DownloadItem rest;
         while ((rest = queue.poll()) != null) {

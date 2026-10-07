@@ -1,3 +1,6 @@
+<details>
+<summary>Open</summary>
+
 <p align="center">
   <img width="300" src="https://github.com/ranobe-org/ranobe/raw/main/assets/app.gif" alt="app gif">
 </p>
@@ -36,6 +39,7 @@
   <a href="README.md"><strong>English</strong></a> • 
   <a href="README_RU.md"><strong>Русский</strong></a>
 </p>
+</details>
 
 ### Features
 - Read Novels
@@ -83,7 +87,8 @@
 
 #### could have
 
-- [ ] advanced search techniques
+- [x] advanced search techniques
+- [x] advanced search capabilities
 - [ ] source management tools ?
 - [ ] export into x formats
 - [ ] metrics if possible
@@ -95,3 +100,5 @@
 
 The developers of this application does not have any affiliation with the content available 
 in the app. It is collecting from the sources freely available through any web browser.
+
+This repository is a fork of the official [Ranobe](https://github.com/ranobe-org/ranobe).
