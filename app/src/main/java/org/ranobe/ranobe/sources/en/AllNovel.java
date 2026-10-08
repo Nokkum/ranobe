@@ -9,7 +9,9 @@ import org.ranobe.ranobe.models.Filter;
 import org.ranobe.ranobe.models.Lang;
 import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.network.HttpClient;
+import org.ranobe.ranobe.sources.SearchFilterSupport;
 import org.ranobe.ranobe.sources.Source;
+import org.ranobe.ranobe.util.SearchFilters;
 import org.ranobe.ranobe.util.NumberUtils;
 import org.ranobe.ranobe.util.SourceUtils;
 
@@ -19,7 +21,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class AllNovel implements Source {
+public class AllNovel implements Source, SearchFilterSupport {
 
     // allnovel.org now redirects every path to the novelfull.com homepage
     private static final String LEGACY_BASE_URL = "https://allnovel.org";
@@ -96,11 +98,38 @@ public class AllNovel implements Source {
                 item.sourceId = sourceId;
                 item.name = element.select("h3.truyen-title > a").text().trim();
                 item.cover = resolveUrl(element.select("img.cover").attr("src").trim());
+                if (isFull(element)) item.status = "Completed";
                 items.add(item);
             }
         }
 
         return items;
+    }
+
+    // The site puts a "full" label on a finished novel's row. A row without it is not necessarily unfinished.
+    static boolean isFull(Element row) {
+        return !row.select("span.label-full").isEmpty();
+    }
+
+    // Only the "full" label tells anything, so only "completed" can be filtered, and only from the results.
+    @Override
+    public boolean filtersStatusItself() {
+        return false;
+    }
+
+    @Override
+    public boolean reportsStatusInResults() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsGenreFilter() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsStatus(String status) {
+        return SearchFilters.COMPLETED.equals(SearchFilters.canonicalStatus(status));
     }
 
     private String resolveUrl(String url) {

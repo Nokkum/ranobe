@@ -44,7 +44,7 @@ public class Ranobe {
     public static final String SETTING_CHAPTER_UPDATE_BANNER_SHOWN = "chapter_update_banner_shown";
     public static final String EXTRA_NAVIGATE_TO_LIBRARY = "navigate_to_library";
 
-    public static final String RANOBE_GITHUB_LINK = "https://github.com/ranobe-org/ranobe";
+    public static final String RANOBE_GITHUB_LINK = "https://github.com/Nokkum/ranobe";
     public static final String MP_LITE_GITHUB_LINK = "https://github.com/AP-Atul/music_player_lite";
     public static final String DISCORD_INVITE_LINK = "https://discord.gg/6CQ6u64dca";
     public static final String RANOBE_M_LINK = "https://play.google.com/store/apps/details?id=in.atulpatare.ranobem.pro";

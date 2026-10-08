@@ -2,10 +2,8 @@ package org.ranobe.ranobe.sources;
 
 import java.io.IOException;
 
-/**
- * A source wants the user to pass a human check (such as a Cloudflare Turnstile) in a browser before it
- * will serve more chapters. Requests made by the app cannot pass it, but a WebView can.
- */
+// A source wants the user to pass a human check (such as a Cloudflare Turnstile) in a browser before it
+// will serve more chapters. Requests made by the app cannot pass it, but a WebView can.
 public class ChallengeRequiredException extends IOException {
     public static final String PREFIX = "Human check required";
 

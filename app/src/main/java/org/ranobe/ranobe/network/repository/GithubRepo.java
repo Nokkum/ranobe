@@ -10,7 +10,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
 public class GithubRepo {
-    private static final String API_ENDPOINT = "https://api.github.com/repos/ranobe-org/ranobe/releases/latest";
+    private static final String API_ENDPOINT = "https://api.github.com/repos/Nokkum/ranobe/releases/latest";
     private final HashMap<String, String> HEADERS = new HashMap<String, String>() {{
         put("Accept", "application/vnd.github+json");
     }};

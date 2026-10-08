@@ -14,6 +14,7 @@ import org.ranobe.ranobe.network.HttpClient;
 import org.ranobe.ranobe.sources.ChallengeRequiredException;
 import org.ranobe.ranobe.sources.ChapterLockedException;
 import org.ranobe.ranobe.sources.SignInRequiredException;
+import org.ranobe.ranobe.sources.SearchFilterSupport;
 import org.ranobe.ranobe.sources.Source;
 
 import java.io.IOException;
@@ -23,7 +24,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class WtrLab implements Source {
+public class WtrLab implements Source, SearchFilterSupport {
     private static final int SOURCE_ID = 21;
     private static final String BASE_URL = "https://wtr-lab.com";
     public static final String SIGN_IN_REQUIRED_PREFIX = "WTR-LAB sign-in required";
@@ -326,11 +327,9 @@ public class WtrLab implements Source {
         return new SignInRequiredException(SIGN_IN_REQUIRED_PREFIX + " to read this chapter.", cause);
     }
 
-    /**
-     * Asks the server whether this app's own requests carry a signed-in session. Returns true only
-     * when it is sure the answer is no; any doubt (network error, odd reply) returns false so a real
-     * failure is never blamed on sign-in.
-     */
+    // Asks the server whether this app's own requests carry a signed-in session. Returns true only
+    // when it is sure the answer is no; any doubt (network error, odd reply) returns false so a real
+    // failure is never blamed on sign-in.
     private static boolean isSignedOut() {
         try {
             String body = HttpClient.GET_WTR_LAB_API(BASE_URL + "/api/auth/get-session", headers());
@@ -340,11 +339,9 @@ public class WtrLab implements Source {
         }
     }
 
-    /**
-     * Asks WTR-LAB to end the session this app is using. Best effort: a failure is ignored, because the
-     * caller always forgets the session locally afterwards. Makes a network call, so run it off the
-     * main thread.
-     */
+    // Asks WTR-LAB to end the session this app is using. Best effort: a failure is ignored, because the
+    // caller always forgets the session locally afterwards. Makes a network call, so run it off the
+    // main thread.
     public static void endSessionOnServer() {
         try {
             HttpClient.POST_JSON_WTR_LAB_API(BASE_URL + "/api/auth/sign-out", "{}");
@@ -423,6 +420,22 @@ public class WtrLab implements Source {
             if (!text.isEmpty()) return text;
         }
         return "";
+    }
+
+    // Search results include each novel's status, so the app can filter them by it.
+    @Override
+    public boolean filtersStatusItself() {
+        return false;
+    }
+
+    @Override
+    public boolean reportsStatusInResults() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsGenreFilter() {
+        return false;
     }
 
     @Override
@@ -668,7 +681,7 @@ public class WtrLab implements Source {
         return replacePlaceholders(String.valueOf(value)).trim();
     }
 
-    /** Replaces each %{shown|base64} placeholder with its shown text. */
+    // Replaces each %{shown|base64} placeholder with its shown text.
     static String replacePlaceholders(String text) {
         if (text == null || !text.contains("%{")) return text;
         Matcher matcher = NAME_PLACEHOLDER.matcher(text);

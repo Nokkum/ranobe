@@ -28,10 +28,8 @@ import com.google.android.material.color.MaterialColors;
 import org.ranobe.ranobe.R;
 import org.ranobe.ranobe.service.DownloadService;
 
-/**
- * Lets the user pass WTR-LAB's human check (Cloudflare Turnstile) in a WebView. The app's own requests
- * cannot solve it. The page's own script verifies the user; the app only shares the WebView cookies.
- */
+// Lets the user pass WTR-LAB's human check (Cloudflare Turnstile) in a WebView. The app's own requests
+// cannot solve it. The page's own script verifies the user; the app only shares the WebView cookies.
 public class WtrLabVerifyActivity extends AppCompatActivity {
     public static final String EXTRA_URL = "url";
     private static final String SITE_HOST = "wtr-lab.com";

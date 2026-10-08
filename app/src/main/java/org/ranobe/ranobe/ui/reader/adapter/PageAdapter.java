@@ -31,11 +31,9 @@ import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Chapters are flattened into small rows (a heading, then one row per paragraph or image) instead of
- * one view per chapter, so the list can recycle views and a font or theme change only rebinds what is
- * on screen rather than re-laying out whole chapters.
- */
+// Chapters are flattened into small rows (a heading, then one row per paragraph or image) instead of
+// one view per chapter, so the list can recycle views and a font or theme change only rebinds what is
+// on screen rather than re-laying out whole chapters.
 public class PageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private static final int TYPE_HEADER = 0;
     private static final int TYPE_TEXT = 1;

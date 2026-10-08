@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_filters">Filters</string>
+    <string name="search_filters_active">Filters: %1$s</string>
+    <string name="search_live">Search as you type</string>
+    <string name="search_status">Status</string>
+    <string name="search_genre">Genre</string>
+    <string name="search_any">Any</string>
+    <string name="search_any_genre">Any genre</string>
+    <string name="search_apply">Apply</string>
+    <string name="search_reset">Reset</string>
+    <string name="search_all_sources">All sources</string>
+    <string name="search_status_ongoing">Ongoing</string>
+    <string name="search_status_completed">Completed</string>
+    <string name="search_status_hiatus">Hiatus</string>
+    <string name="search_status_dropped">Dropped</string>
+    <string name="search_filter_none">none</string>
+    <string name="search_filter_support">Every status works with: %1$s.\nSome statuses only: %2$s.\nGenre works with: %3$s.\nSources that can\'t use a filter are skipped while it is set.</string>
+    <string name="search_filter_skipped">Skipped, they can\'t use the filters: %1$s</string>
+</resources>

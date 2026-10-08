@@ -14,6 +14,7 @@ import org.ranobe.ranobe.models.Filter;
 import org.ranobe.ranobe.models.Lang;
 import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.network.HttpClient;
+import org.ranobe.ranobe.sources.SearchFilterSupport;
 import org.ranobe.ranobe.sources.Source;
 import org.ranobe.ranobe.util.SourceUtils;
 
@@ -23,11 +24,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-// Divine Dao Library runs the Fictioneer WordPress theme.
-public class DivineDaoLibrary implements Source {
+// Divine Dao Library runs the Fictioneer WordPress theme. Novels are "stories" at /story/slug/, and the
+// WordPress REST API lists them (with covers) and serves chapters. Story pages hold the details and the
+// complete chapter list.
+public class DivineDaoLibrary implements Source, SearchFilterSupport {
     public static final String BASE_URL = "https://www.divinedaolibrary.com";
     public static final int SOURCE_ID = 22;
 
@@ -57,14 +61,31 @@ public class DivineDaoLibrary implements Source {
     }
 
     @Override
+    public boolean filtersStatusItself() {
+        return false;
+    }
+
+    @Override
+    public boolean reportsStatusInResults() {
+        return false;
+    }
+
+    // WordPress filters stories by genre term, and the term list is public
+    @Override
+    public boolean supportsGenreFilter() {
+        return true;
+    }
+
+    @Override
     public List<Novel> novels(int page) throws Exception {
-        return storyList(page, null);
+        return storyList(page, null, null);
     }
 
     @Override
     public List<Novel> search(Filter filters, int page) throws Exception {
-        if (!filters.hashKeyword()) return novels(page);
-        return storyList(page, filters.getKeyword());
+        String genre = filters.hasGenre() ? filters.getGenre() : null;
+        if (!filters.hashKeyword()) return genre == null ? novels(page) : storyList(page, null, genre);
+        return storyList(page, filters.getKeyword(), genre);
     }
 
     @Override
@@ -91,7 +112,12 @@ public class DivineDaoLibrary implements Source {
 
     // lists
 
-    private List<Novel> storyList(int page, String keyword) throws Exception {
+    private List<Novel> storyList(int page, String keyword, String genre) throws Exception {
+        Integer genreId = null;
+        if (genre != null && !genre.trim().isEmpty()) {
+            genreId = genreIds().get(normalizeGenre(genre));
+            if (genreId == null) return new ArrayList<>(); // this site has no such genre
+        }
         StringBuilder url = new StringBuilder(BASE_URL)
                 .append("/wp-json/wp/v2/fcn_story?per_page=").append(PAGE_SIZE)
                 .append("&page=").append(Math.max(page, 1));
@@ -100,8 +126,45 @@ public class DivineDaoLibrary implements Source {
         } else {
             url.append("&search=").append(URLEncoder.encode(keyword, "UTF-8"));
         }
+        if (genreId != null) url.append("&fcn_genre=").append(genreId);
         url.append("&_embed=wp:featuredmedia&_fields=").append(STORY_FIELDS);
         return parseStories(HttpClient.GET(url.toString(), new HashMap<>()));
+    }
+
+    // genre name (lower case) -> term id; fetched once and kept for the session
+    private static Map<String, Integer> genreIds;
+
+    private static synchronized Map<String, Integer> genreIds() throws IOException {
+        if (genreIds == null || genreIds.isEmpty()) {
+            genreIds = parseGenres(HttpClient.GET(
+                    BASE_URL + "/wp-json/wp/v2/fcn_genre?per_page=100&_fields=id,name", new HashMap<>()));
+        }
+        return genreIds;
+    }
+
+    static String normalizeGenre(String name) {
+        return name == null ? "" : clean(name).toLowerCase(Locale.ROOT);
+    }
+
+    // The site's genre terms as name (lower case) to id. Anything unreadable gives an empty map.
+    static Map<String, Integer> parseGenres(String json) {
+        Map<String, Integer> genres = new HashMap<>();
+        if (json == null) return genres;
+        try {
+            Object value = new JSONTokener(json.trim()).nextValue();
+            if (!(value instanceof JSONArray)) return genres;
+            JSONArray terms = (JSONArray) value;
+            for (int i = 0; i < terms.length(); i++) {
+                JSONObject term = terms.optJSONObject(i);
+                if (term == null) continue;
+                String name = normalizeGenre(plainText(term.optString("name", "")));
+                int id = term.optInt("id", 0);
+                if (!name.isEmpty() && id > 0) genres.put(name, id);
+            }
+        } catch (JSONException e) {
+            genres.clear();
+        }
+        return genres;
     }
 
     // WordPress answers an error object, not a list, once the page number is past the last page.
@@ -200,7 +263,7 @@ public class DivineDaoLibrary implements Source {
         return novel;
     }
 
-    // "Author: Wanta" in the summary names the real author.
+    // e.g "Author: Wanta" in the summary names the real author.
     static String parseAuthor(Element summary) {
         for (Element heading : summary.select("h1, h2, h3, h4")) {
             String heading_text = clean(heading.text());
@@ -318,7 +381,8 @@ public class DivineDaoLibrary implements Source {
         return BASE_URL + "/wp-json/wp/v2/fcn_chapter?slug=" + slug + "&_fields=id,title,content";
     }
 
-    // One block of text per paragraph. Empty "&nbsp;" spacer paragraphs are dropped.
+    // One block of text per paragraph. Empty "&nbsp;" spacer paragraphs are dropped. Line breaks, images,
+    // tables, lists and scene-break rules are kept, because status windows and the like use them.
     static String blocksToText(Element root) {
         List<String> blocks = new ArrayList<>();
         collectBlocks(root, blocks);
@@ -421,7 +485,7 @@ public class DivineDaoLibrary implements Source {
         return element == null ? "" : clean(element.text());
     }
 
-    /** Trims, treating a non-breaking space as an ordinary space (String.trim() leaves it in). */
+    // Trims, treating a non-breaking space as an ordinary space (String.trim() leaves it in).
     static String clean(String value) {
         return value == null ? "" : value.replace('\u00a0', ' ').trim();
     }

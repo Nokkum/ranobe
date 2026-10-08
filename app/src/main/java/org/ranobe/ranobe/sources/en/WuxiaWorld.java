@@ -8,6 +8,8 @@ import org.ranobe.ranobe.models.Filter;
 import org.ranobe.ranobe.models.Lang;
 import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.network.HttpClient;
+import org.ranobe.ranobe.sources.MadaraSearch;
+import org.ranobe.ranobe.sources.SearchFilterSupport;
 import org.ranobe.ranobe.sources.Source;
 import org.ranobe.ranobe.util.NumberUtils;
 import org.ranobe.ranobe.util.SourceUtils;
@@ -18,7 +20,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
-public class WuxiaWorld implements Source {
+public class WuxiaWorld implements Source, SearchFilterSupport {
     private static final String baseUrl = "https://wuxiaworld.site";
     private static final int sourceId = 13;
 
@@ -34,7 +36,7 @@ public class WuxiaWorld implements Source {
         source.url = baseUrl;
         source.name = "Wuxia World";
         source.lang = Lang.eng;
-        source.dev = "ap-atul";
+        source.dev = "ap-atul + Nokkum";
         source.logo = "https://wuxiaworld.site/wp-content/uploads/2019/04/favicon-1.ico";
         source.isActive = true;
         return source;
@@ -127,12 +129,34 @@ public class WuxiaWorld implements Source {
         return chapter;
     }
 
+    // The theme filters status itself and shows genres on each result card.
+    @Override
+    public boolean filtersStatusItself() {
+        return true;
+    }
+
+    @Override
+    public boolean reportsStatusInResults() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsGenreFilter() {
+        return false;
+    }
+
+    @Override
+    public boolean reportsGenresInResults() {
+        return true;
+    }
+
     @Override
     public List<Novel> search(Filter filters, int page) throws IOException {
         List<Novel> items = new ArrayList<>();
 
         if (filters.hashKeyword()) {
-            String web = SourceUtils.buildUrl(baseUrl, "/page/", String.valueOf(page), "/?s=", filters.getKeyword(), "&post_type=wp-manga");
+            String web = SourceUtils.buildUrl(baseUrl, "/page/", String.valueOf(page), "/?s=", filters.getKeyword(), "&post_type=wp-manga",
+                    MadaraSearch.statusQuery(filters.hasStatus() ? filters.getStatus() : null));
             Element doc = Jsoup.parse(HttpClient.GET(web, new HashMap<>()));
             for (Element element : doc.select(".c-tabs-item__content")) {
                 String url = element.select(".tab-thumb  > a").attr("href").trim();
@@ -144,6 +168,7 @@ public class WuxiaWorld implements Source {
                     item.name = element.select(".post-title > h3 > a").text().trim();
                     item.cover = cleanImg(element.select("img.img-responsive").attr("data-src").trim());
 
+                    MadaraSearch.fillFromCard(item, element);
                     items.add(item);
                 }
             }

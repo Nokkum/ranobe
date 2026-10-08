@@ -8,6 +8,8 @@ import org.ranobe.ranobe.models.Filter;
 import org.ranobe.ranobe.models.Lang;
 import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.network.HttpClient;
+import org.ranobe.ranobe.sources.MadaraSearch;
+import org.ranobe.ranobe.sources.SearchFilterSupport;
 import org.ranobe.ranobe.sources.Source;
 import org.ranobe.ranobe.util.NumberUtils;
 import org.ranobe.ranobe.util.SourceUtils;
@@ -17,7 +19,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
-public class WordRain69 implements Source {
+public class WordRain69 implements Source, SearchFilterSupport {
 
     public static final String BASE_URL = "https://wordrain69.com";
     public static final int SOURCE_ID = 17;
@@ -31,7 +33,7 @@ public class WordRain69 implements Source {
         source.url = BASE_URL;
         source.name = "WordRain69";
         source.lang = Lang.eng;
-        source.dev = "ak-sohag";
+        source.dev = "ak-sohag + Nokkum";
         source.logo = "https://wordrain69.com/storage/2025/11/cropped-Wordrain-removebg-preview-1-270x270.png";
         source.isActive = true;
         return source;
@@ -128,12 +130,34 @@ public class WordRain69 implements Source {
         return chapter;
     }
 
+    // The theme filters status itself and shows genres on each result card.
+    @Override
+    public boolean filtersStatusItself() {
+        return true;
+    }
+
+    @Override
+    public boolean reportsStatusInResults() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsGenreFilter() {
+        return false;
+    }
+
+    @Override
+    public boolean reportsGenresInResults() {
+        return true;
+    }
+
     @Override
     public List<Novel> search(Filter filters, int page) throws Exception {
         List<Novel> items = new ArrayList<>();
 
         if (filters.hashKeyword()) {
-            String web = SourceUtils.buildUrl(BASE_URL, "/page/", String.valueOf(page), "/?post_type=wp-manga&s=", filters.getKeyword());
+            String web = SourceUtils.buildUrl(BASE_URL, "/page/", String.valueOf(page), "/?post_type=wp-manga&s=", filters.getKeyword(),
+                    MadaraSearch.statusQuery(filters.hasStatus() ? filters.getStatus() : null));
             Element doc = Jsoup.parse(HttpClient.GET(web, new HashMap<>()));
             for (Element element : doc.select(".c-tabs-item__content")) {
                 String url = element.select(".post-title a").attr("href").trim();
@@ -143,6 +167,7 @@ public class WordRain69 implements Source {
                     item.sourceId = SOURCE_ID;
                     item.name = element.select(".post-title a").text().trim();
                     item.cover = element.select(".tab-thumb img").attr("data-src");
+                    MadaraSearch.fillFromCard(item, element);
                     items.add(item);
                 }
             }

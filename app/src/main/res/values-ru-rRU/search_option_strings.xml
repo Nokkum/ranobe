@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_filters">Фильтры</string>
+    <string name="search_filters_active">Фильтры: %1$s</string>
+    <string name="search_live">Поиск при вводе</string>
+    <string name="search_status">Статус</string>
+    <string name="search_genre">Жанр</string>
+    <string name="search_any">Любой</string>
+    <string name="search_any_genre">Любой жанр</string>
+    <string name="search_apply">Применить</string>
+    <string name="search_reset">Сбросить</string>
+    <string name="search_all_sources">Все источники</string>
+    <string name="search_status_ongoing">Выходит</string>
+    <string name="search_status_completed">Завершён</string>
+    <string name="search_status_hiatus">Пауза</string>
+    <string name="search_status_dropped">Заброшен</string>
+    <string name="search_filter_none">нет</string>
+    <string name="search_filter_support">Все статусы работают с: %1$s.\nТолько часть статусов: %2$s.\nЖанр работает с: %3$s.\nИсточники, которые не умеют фильтровать, пропускаются, пока фильтр включён.</string>
+    <string name="search_filter_skipped">Пропущены, не поддерживают фильтры: %1$s</string>
+</resources>

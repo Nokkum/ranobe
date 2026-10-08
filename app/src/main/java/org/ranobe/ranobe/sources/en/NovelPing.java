@@ -8,8 +8,10 @@ import org.ranobe.ranobe.models.Filter;
 import org.ranobe.ranobe.models.Lang;
 import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.network.HttpClient;
+import org.ranobe.ranobe.sources.SearchFilterSupport;
 import org.ranobe.ranobe.sources.Source;
 import org.ranobe.ranobe.util.NumberUtils;
+import org.ranobe.ranobe.util.SearchFilters;
 import org.ranobe.ranobe.util.SourceUtils;
 
 import java.io.IOException;
@@ -18,7 +20,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
-public class NovelPing implements Source {
+public class NovelPing implements Source, SearchFilterSupport {
 
     private final String baseUrl = "https://novelping.com";
     private final int sourceId = 18;
@@ -167,9 +169,79 @@ public class NovelPing implements Source {
     public List<Novel> search(Filter filters, int page) throws IOException {
         if (filters.hashKeyword()) {
             String keyword = filters.getKeyword();
-            String web = SourceUtils.buildUrl(baseUrl, "/search?keyword=", keyword, "&page=", String.valueOf(page));
+            String genre = filters.hasGenre() ? genreParam(filters.getGenre()) : "";
+            if (filters.hasGenre() && genre.isEmpty()) return new ArrayList<>(); // this site has no such genre
+            String web = SourceUtils.buildUrl(baseUrl, "/search?keyword=", keyword, "&page=", String.valueOf(page),
+                    filterQuery(filters.hasStatus() ? filters.getStatus() : null, genre));
             return parse(HttpClient.GET(web, new HashMap<>()));
         }
         return new ArrayList<>();
+    }
+
+    // The site's own advanced search takes a status and genres in the address.
+    @Override
+    public boolean filtersStatusItself() {
+        return true;
+    }
+
+    @Override
+    public boolean reportsStatusInResults() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsGenreFilter() {
+        return true;
+    }
+
+    // The site only knows ongoing and completed.
+    @Override
+    public boolean supportsStatus(String status) {
+        return !statusParam(status).isEmpty();
+    }
+
+    private static final java.util.Set<String> GENRES = new java.util.HashSet<>(java.util.Arrays.asList(
+            "ACTION", "ADULT", "ADVENTURE", "ANIME & COMICS", "COMEDY", "DRAMA", "EASTERN", "ECCHI", "FAN-FIC",
+            "FAN-FICTION", "FANTASY", "GAME", "GENDER BENDER", "HAREM", "HISTORICAL", "HORROR", "ISEKAI", "JOSEI",
+            "LGBT+", "LITRPG", "MAGIC", "MAGICAL REALISM", "MARTIAL ARTS", "MATURE", "MECHA", "MILITARY",
+            "MODERN LIFE", "MYSTERY", "PSYCHOLOGICAL", "REALISTIC", "REINCARNATION", "ROMANCE", "SCHOOL LIFE",
+            "SCI-FI", "SEINEN", "SHOUJO", "SHOUJO AI", "SHOUNEN", "SHOUNEN AI", "SLICE OF LIFE", "SMUT", "SPORTS",
+            "SUPERNATURAL", "SYSTEM", "THRILLER", "TRAGEDY", "URBAN", "URBAN FANTASY", "VIDEO GAMES", "WAR",
+            "WUXIA", "XIANXIA", "XUANHUAN", "YAOI", "YURI"));
+
+    // The value the site's status filter takes, or "" for a status it does not have.
+    static String statusParam(String status) {
+        switch (SearchFilters.canonicalStatus(status)) {
+            case SearchFilters.ONGOING:
+                return "ongoing";
+            case SearchFilters.COMPLETED:
+                return "completed";
+            default:
+                return "";
+        }
+    }
+
+    // The site's spelling of a genre (capitals), or "" when it has no such genre.
+    static String genreParam(String genre) {
+        if (genre == null) return "";
+        String upper = genre.trim().toUpperCase(java.util.Locale.ROOT);
+        if (upper.equals("SCIENCE FICTION")) upper = "SCI-FI";
+        return GENRES.contains(upper) ? upper : "";
+    }
+
+    static String filterQuery(String status, String genreParam) {
+        StringBuilder query = new StringBuilder();
+        String statusValue = statusParam(status);
+        if (!statusValue.isEmpty()) query.append("&status=").append(statusValue);
+        if (genreParam != null && !genreParam.isEmpty()) query.append("&genres=").append(encode(genreParam));
+        return query.toString();
+    }
+
+    private static String encode(String value) {
+        try {
+            return java.net.URLEncoder.encode(value, "UTF-8");
+        } catch (java.io.UnsupportedEncodingException e) {
+            return value; // UTF-8 is always there
+        }
     }
 }

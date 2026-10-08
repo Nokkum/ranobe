@@ -11,8 +11,10 @@ import org.ranobe.ranobe.models.Filter;
 import org.ranobe.ranobe.models.Lang;
 import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.network.HttpClient;
+import org.ranobe.ranobe.sources.SearchFilterSupport;
 import org.ranobe.ranobe.sources.Source;
 import org.ranobe.ranobe.util.NumberUtils;
+import org.ranobe.ranobe.util.SearchFilters;
 import org.ranobe.ranobe.util.SourceUtils;
 
 import java.io.IOException;
@@ -23,7 +25,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class RoyalRoad implements Source {
+public class RoyalRoad implements Source, SearchFilterSupport {
 
     private final String baseUrl = "https://royalroad.com";
     private final int sourceId = 20;
@@ -160,9 +162,46 @@ public class RoyalRoad implements Source {
     public List<Novel> search(Filter filters, int page) throws IOException {
         if (filters.hashKeyword()) {
             String keyword = filters.getKeyword();
-            String web = SourceUtils.buildUrl(baseUrl, "/fictions/search?title=", keyword, "&page=", String.valueOf(page));
+            String web = SourceUtils.buildUrl(baseUrl, "/fictions/search?title=", keyword, "&page=", String.valueOf(page),
+                    statusQuery(filters.hasStatus() ? filters.getStatus() : null));
             return parse(HttpClient.GET(web, new HashMap<>()), true);
         }
         return new ArrayList<>();
+    }
+
+    @Override
+    public boolean filtersStatusItself() {
+        return true;
+    }
+
+    @Override
+    public boolean reportsStatusInResults() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsGenreFilter() {
+        return false;
+    }
+
+    /** The value the site's own status filter takes, or "" for a status it does not have. */
+    static String statusParam(String status) {
+        switch (SearchFilters.canonicalStatus(status)) {
+            case SearchFilters.ONGOING:
+                return "ONGOING";
+            case SearchFilters.COMPLETED:
+                return "COMPLETED";
+            case SearchFilters.HIATUS:
+                return "HIATUS";
+            case SearchFilters.DROPPED:
+                return "DROPPED";
+            default:
+                return "";
+        }
+    }
+
+    static String statusQuery(String status) {
+        String param = statusParam(status);
+        return param.isEmpty() ? "" : "&status=" + param;
     }
 }

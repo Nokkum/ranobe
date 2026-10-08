@@ -5,6 +5,8 @@ import java.util.Objects;
 
 public class Filter {
     public static final String FILTER_KEYWORD = "keyword";
+    public static final String FILTER_STATUS = "status";
+    public static final String FILTER_GENRE = "genre";
     private final HashMap<String, String> params;
 
     public Filter() {
@@ -22,6 +24,25 @@ public class Filter {
 
     public String getKeyword() {
         return params.get(FILTER_KEYWORD);
+    }
+
+    // One of "Ongoing", "Completed", "Hiatus" or "Dropped".
+    public boolean hasStatus() {
+        String val = params.get(FILTER_STATUS);
+        return val != null && !val.isEmpty();
+    }
+
+    public String getStatus() {
+        return params.get(FILTER_STATUS);
+    }
+
+    public boolean hasGenre() {
+        String val = params.get(FILTER_GENRE);
+        return val != null && !val.isEmpty();
+    }
+
+    public String getGenre() {
+        return params.get(FILTER_GENRE);
     }
 
     @Override

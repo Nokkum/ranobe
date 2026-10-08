@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_in_library">В вашей библиотеке</string>
+    <string name="search_failed_sources">Не удалось выполнить поиск: %1$s</string>
+</resources>
