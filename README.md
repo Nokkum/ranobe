@@ -1,6 +1,3 @@
-<details>
-<summary>Open</summary>
-
 <p align="center">
   <img width="300" src="https://github.com/ranobe-org/ranobe/raw/main/assets/app.gif" alt="app gif">
 </p>
@@ -39,7 +36,6 @@
   <a href="README.md"><strong>English</strong></a> • 
   <a href="README_RU.md"><strong>Русский</strong></a>
 </p>
-</details>
 
 ### Features
 - Read Novels
@@ -87,7 +83,8 @@
 
 #### could have
 
-- [ ] advanced search techniques
+- [x] advanced search techniques
+- [x] genre searching capabilities
 - [ ] source management tools ?
 - [ ] export into x formats
 - [ ] metrics if possible
