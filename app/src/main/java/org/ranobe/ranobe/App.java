@@ -13,6 +13,7 @@ import androidx.appcompat.app.AppCompatDelegate;
 import com.google.android.material.color.DynamicColors;
 
 import org.ranobe.ranobe.config.Ranobe;
+import org.ranobe.ranobe.worker.ChapterUpdateScheduler;
 
 public class App extends Application {
     @SuppressLint("StaticFieldLeak")
@@ -31,6 +32,10 @@ public class App extends Application {
         // night mode is process-wide; setting it from an activity recreates every live activity
         AppCompatDelegate.setDefaultNightMode(Ranobe.getThemeMode(this));
         createNotificationChannels();
+        // keeps the chapter checks going, and moves an older install to the fixed times
+        if (Ranobe.isPro() && Ranobe.isNewChapterUpdatesEnabled()) {
+            ChapterUpdateScheduler.ensureScheduled(this);
+        }
     }
 
     private void createNotificationChannels() {

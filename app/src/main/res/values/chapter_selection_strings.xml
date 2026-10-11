@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="select_downloaded_chapters">Select downloaded chapters</string>
+    <string name="select_all">Select all</string>
+    <string name="chapters_selected">%1$d selected</string>
+    <string name="close_selection">Close selection</string>
+    <string name="delete_selected_chapters">Delete selected chapters</string>
+    <string name="delete_chapters_confirmation">Delete the %1$d selected chapters from this device? You can download them again later. Reading progress is kept.</string>
+    <string name="chapters_deleted">Deleted %1$d downloaded chapters</string>
+    <string name="select_chapters_first">Select at least one chapter</string>
+</resources>

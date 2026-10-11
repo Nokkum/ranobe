@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="select_downloaded_chapters">Выбрать загруженные главы</string>
+    <string name="select_all">Выбрать все</string>
+    <string name="chapters_selected">Выбрано: %1$d</string>
+    <string name="close_selection">Закрыть выбор</string>
+    <string name="delete_selected_chapters">Удалить выбранные главы</string>
+    <string name="delete_chapters_confirmation">Удалить с устройства выбранные главы (%1$d)? Их можно загрузить снова. Прогресс чтения сохранится.</string>
+    <string name="chapters_deleted">Удалено загруженных глав: %1$d</string>
+    <string name="select_chapters_first">Выберите хотя бы одну главу</string>
+</resources>

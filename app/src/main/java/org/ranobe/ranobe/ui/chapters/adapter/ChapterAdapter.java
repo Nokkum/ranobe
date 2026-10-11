@@ -16,8 +16,10 @@ import org.ranobe.ranobe.databinding.ItemChapterBinding;
 import org.ranobe.ranobe.models.Chapter;
 import org.ranobe.ranobe.models.ReadHistory;
 import org.ranobe.ranobe.service.DownloadService;
+import org.ranobe.ranobe.ui.views.RecyclerSwipeHelper;
 
 import java.util.HashMap;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +35,9 @@ public class ChapterAdapter extends RecyclerView.Adapter<ChapterAdapter.MyViewHo
     private final Map<String, ReadHistory> historyMap = new HashMap<>();
     private Set<String> downloadedUrls = new HashSet<>();
     private OnChapterDownloadClickListener downloadListener;
+    private OnChapterSelectionListener selectionListener;
+    private boolean selectionMode = false;
+    private Set<String> selectedUrls = new HashSet<>();
     private String lastReadUrl;
 
     public ChapterAdapter(List<Chapter> items, OnChapterItemClickListener listener) {
@@ -47,6 +52,11 @@ public class ChapterAdapter extends RecyclerView.Adapter<ChapterAdapter.MyViewHo
 
     public Chapter getItem(int position) {
         return items.get(position);
+    }
+
+    // What the list shows right now, for "select all".
+    public List<Chapter> getItems() {
+        return Collections.unmodifiableList(items);
     }
 
     // history is newest first, so the first entry is where the reader stopped
@@ -83,6 +93,22 @@ public class ChapterAdapter extends RecyclerView.Adapter<ChapterAdapter.MyViewHo
 
     public void setDownloadListener(OnChapterDownloadClickListener listener) {
         this.downloadListener = listener;
+    }
+
+    public void setSelectionListener(OnChapterSelectionListener listener) {
+        this.selectionListener = listener;
+    }
+
+    // In selection mode a tap chooses the chapter instead of opening it, and each row shows a check box.
+    public void setSelectionMode(boolean enabled, Set<String> selected) {
+        this.selectionMode = enabled;
+        this.selectedUrls = new HashSet<>(selected);
+        notifyItemRangeChanged(0, items.size());
+    }
+
+    public void setSelected(Set<String> selected) {
+        this.selectedUrls = new HashSet<>(selected);
+        notifyItemRangeChanged(0, items.size());
     }
 
     @NonNull
@@ -127,6 +153,17 @@ public class ChapterAdapter extends RecyclerView.Adapter<ChapterAdapter.MyViewHo
                     isDownloaded ? androidx.appcompat.R.attr.colorPrimary : com.google.android.material.R.attr.colorOnSurfaceVariant));
             holder.binding.downloadBtn.setEnabled(true);
         }
+
+        holder.binding.selectCheck.setVisibility(selectionMode ? View.VISIBLE : View.GONE);
+        if (selectionMode) {
+            holder.binding.selectCheck.setChecked(selectedUrls.contains(item.url));
+            holder.binding.downloadBtn.setVisibility(View.GONE);
+            holder.binding.downloadProgress.hide();
+            // swiping to mark read would fight with choosing chapters
+            holder.itemView.setTag(RecyclerSwipeHelper.TAG_NO_SWIPE);
+        } else {
+            holder.itemView.setTag(null);
+        }
     }
 
     @Override
@@ -142,6 +179,14 @@ public class ChapterAdapter extends RecyclerView.Adapter<ChapterAdapter.MyViewHo
         void onDownloadClick(Chapter chapter);
     }
 
+    public interface OnChapterSelectionListener {
+        // A tap on a row while choosing.
+        void onToggleSelection(Chapter chapter);
+
+        // A long press on a row; true when it was used (it starts choosing).
+        boolean onChapterLongClick(Chapter chapter);
+    }
+
     public class MyViewHolder extends RecyclerView.ViewHolder {
         private final ItemChapterBinding binding;
 
@@ -151,8 +196,18 @@ public class ChapterAdapter extends RecyclerView.Adapter<ChapterAdapter.MyViewHo
 
             binding.chapterItemLayout.setOnClickListener(v -> {
                 int position = getAdapterPosition();
-                if (position != RecyclerView.NO_POSITION)
+                if (position == RecyclerView.NO_POSITION) return;
+                if (selectionMode && selectionListener != null) {
+                    selectionListener.onToggleSelection(items.get(position));
+                } else {
                     listener.onChapterItemClick(items.get(position));
+                }
+            });
+
+            binding.chapterItemLayout.setOnLongClickListener(v -> {
+                int position = getAdapterPosition();
+                return selectionListener != null && position != RecyclerView.NO_POSITION
+                        && selectionListener.onChapterLongClick(items.get(position));
             });
 
             binding.downloadBtn.setOnClickListener(v -> {

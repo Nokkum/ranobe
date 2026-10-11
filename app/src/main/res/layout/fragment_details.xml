@@ -50,6 +50,7 @@
                     app:icon="@drawable/ic_arrow_back" />
 
                 <LinearLayout
+                    android:id="@+id/cover_row"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
@@ -75,6 +76,7 @@
                     </com.google.android.material.card.MaterialCardView>
 
                     <LinearLayout
+                        android:id="@+id/info_column"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="16dp"
@@ -100,6 +102,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:ellipsize="end"
+                            android:foreground="?attr/selectableItemBackground"
                             android:maxLines="3"
                             android:textAppearance="?attr/textAppearanceHeadlineSmall"
                             android:textColor="?colorOnSurface" />

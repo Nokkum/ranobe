@@ -34,6 +34,13 @@ public interface ChapterDao {
     @Query("DELETE FROM chapter WHERE novelUrl=:novelUrl")
     int deleteByNovel(String novelUrl);
 
+    @Query("DELETE FROM chapter WHERE url IN (:urls)")
+    int deleteByUrls(List<String> urls);
+
+    // only the chosen chapters that contain images
+    @Query("SELECT content FROM chapter WHERE url IN (:urls) AND instr(content, '[img]') > 0")
+    List<String> getImageContentsOf(List<String> urls);
+
     // only chapters that contain images, so a big novel is not loaded into memory just to find them
     @Query("SELECT content FROM chapter WHERE novelUrl=:novelUrl AND instr(content, '[img]') > 0")
     List<String> getContentsWithImages(String novelUrl);

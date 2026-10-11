@@ -329,7 +329,7 @@
                     android:layout_height="wrap_content"
                     app:settingExternal="true"
                     app:settingIcon="@drawable/ic_github"
-                    app:settingSubtitle="github.com/ranobe-org/ranobe"
+                    app:settingSubtitle="github.com/Nokkum/ranobe"
                     app:settingTitle="GitHub" />
 
                 <com.google.android.material.divider.MaterialDivider

@@ -1,12 +1,19 @@
 package org.ranobe.ranobe.ui.details;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
 import android.content.Intent;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.Layout;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.AccelerateDecelerateInterpolator;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.core.graphics.ColorUtils;
@@ -39,6 +46,8 @@ import java.util.Locale;
 
 public class Details extends Fragment {
     private static final int SUMMARY_LINES = 6;
+    private static final int TITLE_LINES = 3;
+    private static final long TITLE_ANIMATION_MS = 400L;
     private FragmentDetailsBinding binding;
     private DetailsViewModel viewModel;
     private HistoryViewModel historyViewModel;
@@ -46,6 +55,10 @@ public class Details extends Fragment {
     private Novel novel;
     private boolean inLibrary = false;
     private boolean summaryExpanded = false;
+    private boolean titleExpanded = false;
+    // while the title is open, the text column is pinned in place and the backdrop kept at its size
+    private boolean titlePinned = false;
+    private ValueAnimator titleAnimator;
     private String shownCover;
 
     public Details() {
@@ -84,7 +97,10 @@ public class Details extends Fragment {
     // memory cache), so show those while the full details load
     private void showPreview() {
         if (novel == null) return;
-        if (novel.name != null) binding.novelName.setText(novel.name);
+        if (novel.name != null) {
+            binding.novelName.setText(novel.name);
+            updateTitleToggle();
+        }
         if (novel.cover != null) loadCover(novel.cover);
     }
 
@@ -100,6 +116,11 @@ public class Details extends Fragment {
         binding.addToLib.setOnClickListener(v -> toggleLibrary());
         binding.share.setOnClickListener(v -> shareLink());
         binding.back.setOnClickListener(v -> Navigation.findNavController(requireActivity(), R.id.nav_host_fragment_content_main).navigateUp());
+        // a long title is cut off after a few lines; tapping it shows all of it, and tapping again folds it
+        titleExpanded = false;
+        titlePinned = false;
+        binding.novelName.setMaxLines(TITLE_LINES);
+        binding.novelName.setOnClickListener(v -> toggleTitle());
         binding.summaryToggle.setOnClickListener(v -> {
             summaryExpanded = !summaryExpanded;
             binding.summary.setMaxLines(summaryExpanded ? Integer.MAX_VALUE : SUMMARY_LINES);
@@ -150,11 +171,128 @@ public class Details extends Fragment {
         chapters.show(getParentFragmentManager(), "chapters-sheet");
     }
 
+    // Opens or folds the title with a short animation.
+    private void toggleTitle() {
+        if (binding == null || (titleAnimator != null && titleAnimator.isRunning())) return;
+        TextView title = binding.novelName;
+        boolean expanding = !titleExpanded;
+        titleExpanded = expanding;
+
+        int from = title.getHeight();
+        int to = titleHeight(title, expanding ? Integer.MAX_VALUE : TITLE_LINES);
+        if (title.getWidth() == 0 || from == to) {
+            title.setMaxLines(expanding ? Integer.MAX_VALUE : TITLE_LINES);
+            return;
+        }
+
+        pinTitle();
+        // lay out the whole title now; the height decides how much of it shows while it moves
+        title.setMaxLines(Integer.MAX_VALUE);
+        ViewGroup.LayoutParams params = title.getLayoutParams();
+        params.height = from;
+        title.setLayoutParams(params);
+
+        titleAnimator = ValueAnimator.ofInt(from, to);
+        titleAnimator.setDuration(TITLE_ANIMATION_MS);
+        titleAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+        titleAnimator.addUpdateListener(animation -> {
+            if (binding == null) return;
+            params.height = (int) animation.getAnimatedValue();
+            binding.novelName.setLayoutParams(params);
+        });
+        titleAnimator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                finishTitleAnimation(expanding);
+            }
+
+            @Override
+            public void onAnimationCancel(Animator animation) {
+                finishTitleAnimation(expanding);
+            }
+        });
+        titleAnimator.start();
+    }
+
+    private void finishTitleAnimation(boolean expanded) {
+        if (binding == null) return;
+        binding.novelName.setMaxLines(expanded ? Integer.MAX_VALUE : TITLE_LINES);
+        ViewGroup.LayoutParams params = binding.novelName.getLayoutParams();
+        params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+        binding.novelName.setLayoutParams(params);
+        if (!expanded) unpinTitle();
+    }
+
+    // How tall the title is when limited to this many lines.
+    private static int titleHeight(TextView title, int lines) {
+        int before = title.getMaxLines();
+        title.setMaxLines(lines);
+        title.measure(
+                View.MeasureSpec.makeMeasureSpec(title.getWidth(), View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+        int height = title.getMeasuredHeight();
+        title.setMaxLines(before);
+        return height;
+    }
+
+    // The cover and the text column sit at the bottom of their row.
+    private void pinTitle() {
+        if (titlePinned) return;
+        pinTop(binding.novelCoverLayout);
+        pinTop(binding.infoColumn);
+        binding.coverRow.setGravity(Gravity.TOP);
+
+        int headerHeight = binding.headerLayout.getHeight();
+        setHeight(binding.novelCoverHeader, headerHeight);
+        setHeight(binding.headerScrim, headerHeight);
+        titlePinned = true;
+    }
+
+    private void unpinTitle() {
+        if (!titlePinned) return;
+        setTopMargin(binding.novelCoverLayout, 0);
+        setTopMargin(binding.infoColumn, 0);
+        binding.coverRow.setGravity(Gravity.BOTTOM);
+
+        setHeight(binding.novelCoverHeader, ViewGroup.LayoutParams.MATCH_PARENT);
+        setHeight(binding.headerScrim, ViewGroup.LayoutParams.MATCH_PARENT);
+        titlePinned = false;
+    }
+
+    // Holds a view where it is by giving it a top margin equal to its current top.
+    private static void pinTop(View view) {
+        setTopMargin(view, view.getTop());
+    }
+
+    private static void setTopMargin(View view, int margin) {
+        LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) view.getLayoutParams();
+        params.topMargin = margin;
+        view.setLayoutParams(params);
+    }
+
+    private static void setHeight(View view, int height) {
+        ViewGroup.LayoutParams params = view.getLayoutParams();
+        params.height = height;
+        view.setLayoutParams(params);
+    }
+
+    /** The title only reacts to taps while it is cut off (or open), so a short title is not a dead button. */
+    private void updateTitleToggle() {
+        binding.novelName.post(() -> {
+            if (binding == null) return;
+            Layout layout = binding.novelName.getLayout();
+            boolean cut = layout != null && layout.getLineCount() > 0
+                    && layout.getEllipsisCount(layout.getLineCount() - 1) > 0;
+            binding.novelName.setClickable(cut || titleExpanded);
+        });
+    }
+
     private void setUpUi(Novel novel) {
         this.novel = novel;
         // skip reloading (and re-fading) the cover the preview already shows
         if (novel.cover != null && !novel.cover.equals(shownCover)) loadCover(novel.cover);
         binding.novelName.setText(novel.name);
+        updateTitleToggle();
         binding.summary.setText(novel.summary);
         addChips(novel.genres);
 
@@ -221,6 +359,9 @@ public class Details extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        if (titleAnimator != null) titleAnimator.removeAllListeners();
+        if (titleAnimator != null) titleAnimator.cancel();
+        titleAnimator = null;
         binding = null;
         shownCover = null;
     }

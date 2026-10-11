@@ -35,14 +35,32 @@ public class ChapterUpdateWorker extends Worker {
     @NonNull
     @Override
     public Result doWork() {
+        try {
+            checkLibrary();
+        } catch (RuntimeException e) {
+            // a failed run only skips this time; the schedule goes on
+        } finally {
+            scheduleNext();
+        }
+        return Result.success();
+    }
+
+    // Queues the run after this one, as long as updates are still switched on.
+    private void scheduleNext() {
+        if (Ranobe.isPro() && Ranobe.isNewChapterUpdatesEnabled()) {
+            ChapterUpdateScheduler.scheduleNext(getApplicationContext());
+        }
+    }
+
+    private void checkLibrary() {
         if (!Ranobe.isPro() || !Ranobe.isNewChapterUpdatesEnabled()) {
-            return Result.success();
+            return;
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                 && getApplicationContext().checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
-            return Result.success();
+            return;
         }
 
         RanobeDatabase database = RanobeDatabase.database();
@@ -50,14 +68,12 @@ public class ChapterUpdateWorker extends Worker {
         try {
             novels = database.novels().listSync();
         } catch (Exception e) {
-            return Result.retry();
+            return; // skip this time rather than retry, so one run never queues the next twice
         }
 
         for (Novel novel : novels) {
             checkNovel(database, novel);
         }
-
-        return Result.success();
     }
 
     private void checkNovel(RanobeDatabase database, Novel novel) {
