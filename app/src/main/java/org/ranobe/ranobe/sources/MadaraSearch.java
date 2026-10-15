@@ -2,9 +2,11 @@ package org.ranobe.ranobe.sources;
 
 import org.jsoup.nodes.Element;
 import org.ranobe.ranobe.models.Novel;
+import org.ranobe.ranobe.util.AuthorNames;
 import org.ranobe.ranobe.util.SearchFilters;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 // What the Madara WordPress theme gives a search: a status filter in the address, and a status and
@@ -53,15 +55,33 @@ public final class MadaraSearch {
         return genres;
     }
 
+    // The names in an "Authors" cell: the linked names (an author often has a second, native-script one), or
+    // plain comma-separated text. Element#text() on the links would glue the names into one, so each is read alone.
+    public static List<String> authorsFrom(Element content) {
+        if (content == null) return new ArrayList<>();
+        List<String> linked = AuthorNames.clean(content.select("a").eachText());
+        if (!linked.isEmpty()) return linked;
+        return AuthorNames.clean(Arrays.asList(content.text().split(",")));
+    }
+
+    // The address of one page of the site's own search, filtered to an author.
+    public static String authorPageUrl(String baseUrl, String author, int page) {
+        return baseUrl.replaceAll("/+$", "") + "/page/" + page + "/?post_type=wp-manga&s=&author="
+                + AuthorNames.encode(author);
+    }
+
     public static String statusFrom(Element card) {
         Element status = card.selectFirst(".mg_status .summary-content");
         return status == null ? "" : status.text().trim();
     }
 
-    // Copies the card's genres and status onto the novel, so the app can filter results by genre.
+    // Copies the card's genres, status and authors onto the novel, so the app can filter results by genre
+    // and tell whose novel it is.
     public static void fillFromCard(Novel novel, Element card) {
         novel.genres = genresFrom(card);
         String status = statusFrom(card);
         if (!status.isEmpty()) novel.status = status;
+        List<String> authors = authorsFrom(card.selectFirst(".mg_author .summary-content"));
+        if (!authors.isEmpty()) novel.authors = authors;
     }
 }

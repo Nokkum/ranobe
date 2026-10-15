@@ -50,6 +50,17 @@
         <action
             android:id="@id/details_fragment_to_chapters"
             app:destination="@id/chapters_fragment" />
+        <action
+            android:id="@id/details_fragment_to_author"
+            app:destination="@id/author_fragment" />
+    </fragment>
+    <fragment
+        android:label="fragment_author"
+        android:name="org.ranobe.ranobe.ui.author.Author"
+        android:id="@id/author_fragment">
+        <action
+            android:id="@id/author_fragment_to_details"
+            app:destination="@id/details_fragment" />
     </fragment>
     <fragment
         android:label="fragment_chapters"

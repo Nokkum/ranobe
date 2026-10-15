@@ -4,9 +4,11 @@ import org.ranobe.ranobe.config.RanobeSettings;
 import org.ranobe.ranobe.models.Chapter;
 import org.ranobe.ranobe.models.Filter;
 import org.ranobe.ranobe.models.Novel;
+import org.ranobe.ranobe.sources.AuthorSearch;
 import org.ranobe.ranobe.sources.Source;
 import org.ranobe.ranobe.sources.SourceManager;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -83,6 +85,25 @@ public class Repository {
             try {
                 List<Novel> items = source.search(filter, page);
                 callback.onComplete(items);
+            } catch (Exception e) {
+                callback.onError(e);
+            }
+        });
+    }
+
+    // Whether the source can list an author's novels at all (see AuthorSearch).
+    public boolean supportsAuthorWorks() {
+        return source instanceof AuthorSearch;
+    }
+
+    public void authorWorks(String author, int page, Callback<List<Novel>> callback) {
+        executor.execute(() -> {
+            try {
+                if (!(source instanceof AuthorSearch)) {
+                    callback.onComplete(new ArrayList<>());
+                    return;
+                }
+                callback.onComplete(((AuthorSearch) source).authorWorks(author, page));
             } catch (Exception e) {
                 callback.onError(e);
             }

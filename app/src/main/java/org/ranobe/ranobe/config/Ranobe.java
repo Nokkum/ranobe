@@ -36,6 +36,8 @@ public class Ranobe {
     public static final String KEY_NOVEL = "key_novel";
     public static final String KEY_CHAPTER = "key_chapter";
     public static final String KEY_READ_HISTORY = "key_history";
+    public static final String KEY_AUTHOR = "key_author";
+    public static final String KEY_EXCLUDE_URL = "key_exclude_url";
 
     public static final String NOTIF_DOWNLOAD_CHANNEL_NAME = "download_notification";
     public static final String NOTIF_CHAPTER_UPDATE_CHANNEL_ID = "chapter_update_notification";

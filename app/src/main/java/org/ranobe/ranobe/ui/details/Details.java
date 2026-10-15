@@ -7,6 +7,11 @@ import android.content.Intent;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.Layout;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.TextPaint;
+import android.text.method.LinkMovementMethod;
+import android.text.style.ClickableSpan;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -39,6 +44,7 @@ import org.ranobe.ranobe.ui.chapters.Chapters;
 import org.ranobe.ranobe.ui.details.viewmodel.DetailsViewModel;
 import org.ranobe.ranobe.ui.error.Error;
 import org.ranobe.ranobe.ui.history.viewmodel.HistoryViewModel;
+import org.ranobe.ranobe.util.AuthorNames;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -127,11 +133,47 @@ public class Details extends Fragment {
             binding.summaryToggle.setText(summaryExpanded ? R.string.show_less : R.string.show_more);
         });
         binding.progress.show();
+        setUpRefresh();
 
         // backdrop fades into the page background so the header blends in
         int surface = MaterialColors.getColor(binding.getRoot(), com.google.android.material.R.attr.colorSurface);
         binding.headerScrim.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
                 new int[]{ColorUtils.setAlphaComponent(surface, 0x66), surface}));
+    }
+
+    // pulling the page down at the top fetches the novel and its chapter list again
+    private void setUpRefresh() {
+        binding.refresh.setColorSchemeColors(
+                MaterialColors.getColor(binding.getRoot(), androidx.appcompat.R.attr.colorPrimary));
+        binding.refresh.setProgressBackgroundColorSchemeColor(
+                MaterialColors.getColor(binding.getRoot(), com.google.android.material.R.attr.colorSurface));
+        binding.refresh.setOnRefreshListener(this::refresh);
+    }
+
+    private void refresh() {
+        if (novel == null) {
+            binding.refresh.setRefreshing(false);
+            return;
+        }
+        viewModel.refresh(novel).observe(getViewLifecycleOwner(), this::onRefreshed);
+    }
+
+    private void onRefreshed(DetailsViewModel.Refresh result) {
+        binding.refresh.setRefreshing(false);
+        // the page keeps what it shows when only the chapters could be fetched
+        if (result.novel != null) setUpUi(result.novel);
+
+        String message;
+        if (!result.chaptersRefreshed) {
+            message = getString(R.string.refresh_failed, result.error);
+        } else if (result.newChapters > 0) {
+            message = getResources().getQuantityString(R.plurals.refresh_new_chapters, result.newChapters, result.newChapters);
+        } else if (result.newChapters == 0) {
+            message = getString(R.string.refresh_no_new_chapters);
+        } else {
+            message = getString(R.string.refresh_chapters_updated);
+        }
+        Snackbar.make(binding.getRoot(), message, Snackbar.LENGTH_SHORT).show();
     }
 
     private void shareLink() {
@@ -300,9 +342,7 @@ public class Details extends Fragment {
         binding.status.setText(hasStatus ? novel.status.trim() : null);
         binding.status.setVisibility(hasStatus ? View.VISIBLE : View.GONE);
 
-        boolean hasAuthors = novel.authors != null && !novel.authors.isEmpty();
-        binding.authors.setText(hasAuthors ? String.join(", ", novel.authors) : null);
-        binding.authors.setVisibility(hasAuthors ? View.VISIBLE : View.GONE);
+        setUpAuthors(novel);
 
         binding.rating.setText(metaLine(novel));
 
@@ -320,6 +360,53 @@ public class Details extends Fragment {
     }
 
     // "★ 4.3 · 2012 · Source": only the parts this source provides
+    // Each author's name opens the page of that author's works. A placeholder such as "Unknown" has nothing to
+    // look up, so it is shown as plain text.
+    private void setUpAuthors(Novel novel) {
+        List<String> authors = AuthorNames.clean(novel.authors);
+        if (authors.isEmpty()) {
+            binding.authors.setText(null);
+            binding.authors.setVisibility(View.GONE);
+            return;
+        }
+
+        int color = binding.authors.getCurrentTextColor();
+        SpannableStringBuilder text = new SpannableStringBuilder();
+        for (String name : authors) {
+            if (text.length() > 0) text.append(", ");
+            int start = text.length();
+            text.append(name);
+            if (!AuthorNames.isLookupName(name)) continue;
+            text.setSpan(new ClickableSpan() {
+                @Override
+                public void onClick(@NonNull View widget) {
+                    openAuthor(name);
+                }
+
+                @Override
+                public void updateDrawState(@NonNull TextPaint paint) {
+                    // keep the text color and underline it, so the name reads as something to tap
+                    paint.setColor(color);
+                    paint.setUnderlineText(true);
+                }
+            }, start, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        binding.authors.setText(text);
+        binding.authors.setMovementMethod(LinkMovementMethod.getInstance());
+        binding.authors.setVisibility(View.VISIBLE);
+    }
+
+    private void openAuthor(String name) {
+        if (novel == null) return;
+        Bundle bundle = new Bundle();
+        bundle.putString(Ranobe.KEY_AUTHOR, name);
+        bundle.putInt(Ranobe.KEY_SOURCE_ID, novel.sourceId > 0 ? novel.sourceId : RanobeSettings.get().getCurrentSource());
+        // the novel being read isn't one of the author's *other* works
+        bundle.putString(Ranobe.KEY_EXCLUDE_URL, novel.url);
+        Navigation.findNavController(requireActivity(), R.id.nav_host_fragment_content_main)
+                .navigate(R.id.details_fragment_to_author, bundle);
+    }
+
     private String metaLine(Novel novel) {
         List<String> parts = new ArrayList<>();
         if (novel.rating > 0) parts.add(String.format(Locale.getDefault(), "★ %.1f", novel.rating));

@@ -11,8 +11,10 @@ import org.ranobe.ranobe.models.Filter;
 import org.ranobe.ranobe.models.Lang;
 import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.network.HttpClient;
+import org.ranobe.ranobe.sources.AuthorSearch;
 import org.ranobe.ranobe.sources.SearchFilterSupport;
 import org.ranobe.ranobe.sources.Source;
+import org.ranobe.ranobe.util.AuthorNames;
 import org.ranobe.ranobe.util.NumberUtils;
 import org.ranobe.ranobe.util.SearchFilters;
 import org.ranobe.ranobe.util.SourceUtils;
@@ -25,7 +27,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class RoyalRoad implements Source, SearchFilterSupport {
+public class RoyalRoad implements Source, SearchFilterSupport, AuthorSearch {
 
     private final String baseUrl = "https://royalroad.com";
     private final int sourceId = 20;
@@ -82,7 +84,10 @@ public class RoyalRoad implements Source, SearchFilterSupport {
         novel.summary = doc.select("div.description").text().replaceAll("::", "\n\n").trim();
         novel.rating = NumberUtils.toFloat(doc.select("span[data-original-title='Overall Score']").attr("data-content").trim().split("/")[0].trim());
 
-        String author = doc.select("h4").first().text().trim().replace("by", "").trim();
+        // the name is a link to the author's profile; "by" before it is a separate label
+        Element authorLink = doc.selectFirst("h4 a[href^=/profile]");
+        String author = authorLink != null ? authorLink.text().trim()
+                : doc.select("h4").first().text().trim().replaceFirst("(?i)^by\\s+", "").trim();
         novel.authors = Collections.singletonList(author);
 
         List<String> genres = new ArrayList<>();
@@ -167,6 +172,15 @@ public class RoyalRoad implements Source, SearchFilterSupport {
             return parse(HttpClient.GET(web, new HashMap<>()), true);
         }
         return new ArrayList<>();
+    }
+
+    // The site's own author filter. It matches the author's username exactly, and the author is the one
+    // name this source lists (Novel.authors), so a name taken from a novel page finds that author's fictions.
+    @Override
+    public List<Novel> authorWorks(String author, int page) throws IOException {
+        String web = SourceUtils.buildUrl(baseUrl, "/fictions/search?author=", AuthorNames.encode(author),
+                "&page=", String.valueOf(page));
+        return parse(HttpClient.GET(web, new HashMap<>()), true);
     }
 
     @Override

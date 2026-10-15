@@ -9,8 +9,12 @@ import org.ranobe.ranobe.models.Chapter;
 import org.ranobe.ranobe.models.ChapterMetadata;
 import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.network.repository.Repository;
+import org.ranobe.ranobe.util.ChapterDiff;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class ChaptersViewModel extends ViewModel {
     private static final long CACHE_EXPIRY_HOURS = 24;
@@ -38,6 +42,55 @@ public class ChaptersViewModel extends ViewModel {
             }
         });
         return chapters;
+    }
+
+    // Fetches the chapter list from the source whatever the 24 hour cache says, and saves it so every screen
+    // that reads the list sees the new chapters. Calls back with how many chapters weren't in the saved list
+    // (-1 when there was no saved list to compare with), or with the error. The callback runs off the main thread.
+    public static void refreshChapters(Novel novel, Repository.Callback<Integer> callback) {
+        RanobeDatabase.databaseExecutor.execute(() -> {
+            Set<String> known = new HashSet<>();
+            try {
+                List<ChapterMetadata> saved = RanobeDatabase.database().chapterMetadata().listByUrl(novel.url);
+                if (saved != null) {
+                    for (ChapterMetadata item : saved) known.add(item.url);
+                }
+            } catch (RuntimeException e) {
+                callback.onError(e);
+                return;
+            }
+            final boolean hadSavedList = !known.isEmpty();
+
+            new Repository(novel.sourceId).chapters(novel, new Repository.Callback<List<Chapter>>() {
+                @Override
+                public void onComplete(List<Chapter> result) {
+                    // an empty list is usually a block / error page; keep what is saved rather than wipe it
+                    if (result == null || result.isEmpty()) {
+                        callback.onError(new Exception("The source returned no chapters"));
+                        return;
+                    }
+                    List<String> fetchedUrls = new ArrayList<>();
+                    for (Chapter chapter : result) fetchedUrls.add(chapter.url);
+                    int added = hadSavedList ? ChapterDiff.countNew(known, fetchedUrls) : -1;
+
+                    List<ChapterMetadata> list = ChapterMapper.ToChapterMetadataList(result);
+                    long now = System.currentTimeMillis();
+                    for (ChapterMetadata item : list) item.cachedDate = now;
+                    RanobeDatabase.database().runInTransaction(() -> {
+                        RanobeDatabase.database().chapterMetadata().deleteByNovel(novel.url);
+                        RanobeDatabase.database().chapterMetadata().saveAll(list);
+                    });
+                    // the library's new-chapter check compares against this count, and these chapters are no longer news
+                    RanobeDatabase.database().novels().updateLastKnownChapterCount(result.size(), novel.url);
+                    callback.onComplete(added);
+                }
+
+                @Override
+                public void onError(Exception e) {
+                    callback.onError(e);
+                }
+            });
+        });
     }
 
     private boolean isCacheExpired(long cachedDate) {

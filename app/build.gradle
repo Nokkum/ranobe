@@ -10,7 +10,7 @@ android {
         minSdk 23
         targetSdkVersion 36
         versionCode 16
-        versionName "v0.0.20"
+        versionName "v1.0.0"
 
         javaCompileOptions {
             annotationProcessorOptions {
@@ -21,22 +21,22 @@ android {
 
     flavorDimensions "version"
     productFlavors {
-        downloader {
+        beta {
             dimension "version"
-            applicationId "org.ranobe.downloader"
-            versionName "v0.0.20-downloader"
+            applicationId "org.ranobe.debug"
+            versionName "debug-v1.0.0"
         }
 
         pro {
             dimension "version"
-            applicationId "org.ranobe.downloader.pro"
-            versionName "v0.0.20-downloader-pro"
+            applicationId "org.ranobe.pro"
+            versionName "pro-v1.0.0"
         }
 
         ranobe {
             dimension "version"
-            applicationId "org.ranobe.ranobe"
-            versionName "v0.0.20"
+            applicationId "org.ranobe.release"
+            versionName "release-v1.0.0"
         }
     }
 
@@ -51,7 +51,7 @@ android {
     // Set custom APK output file names per flavor + build type
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "ranobe-${variant.flavorName}-${variant.buildType.name}.apk"
+            outputFileName = "ranobe-${variant.flavorName}.apk"
         }
     }
 
@@ -96,6 +96,7 @@ dependencies {
     implementation 'org.jsoup:jsoup:1.15.3'
     implementation 'com.github.bumptech.glide:glide:4.15.1'
     implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.15.1'
     implementation "com.squareup.okhttp3:okhttp:4.12.0"
     implementation 'androidx.room:room-runtime:2.7.1'

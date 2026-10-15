@@ -11,6 +11,7 @@ import org.ranobe.ranobe.database.mapper.NovelMapper;
 import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.models.NovelMetadata;
 import org.ranobe.ranobe.network.repository.Repository;
+import org.ranobe.ranobe.ui.chapters.viewmodel.ChaptersViewModel;
 
 public class DetailsViewModel extends ViewModel {
     private static final long CACHE_EXPIRY_HOURS = 24;
@@ -29,6 +30,75 @@ public class DetailsViewModel extends ViewModel {
 
     public MutableLiveData<String> getError() {
         return error = new MutableLiveData<>();
+    }
+
+    // What a pull-to-refresh came back with.
+    public static final class Refresh {
+        // the refreshed details, or null when they couldn't be fetched (the page keeps what it shows)
+        public final Novel novel;
+        // chapters that weren't in the saved list; -1 when that can't be told
+        public final int newChapters;
+        // whether the chapter list itself was fetched and saved
+        public final boolean chaptersRefreshed;
+        // why the chapter list wasn't refreshed
+        public final String error;
+
+        Refresh(Novel novel, int newChapters, boolean chaptersRefreshed, String error) {
+            this.novel = novel;
+            this.newChapters = newChapters;
+            this.chaptersRefreshed = chaptersRefreshed;
+            this.error = error;
+        }
+    }
+
+    // Fetches the details and the chapter list again, ignoring the 24 hour caches, and saves both. They run one
+    // after the other: sources rate-limit, and the chapter list is the part that matters most.
+    public LiveData<Refresh> refresh(Novel novel) {
+        MutableLiveData<Refresh> result = new MutableLiveData<>();
+        // sources fill in the novels they're given on a worker thread, so each call gets its own copy
+        Novel forDetails = copy(novel);
+        Novel forChapters = copy(novel);
+        new Repository(novel.sourceId).details(forDetails, new Repository.Callback<Novel>() {
+            @Override
+            public void onComplete(Novel details) {
+                refreshChapters(forChapters, saveDetails(novel, details), result);
+            }
+
+            @Override
+            public void onError(Exception e) {
+                // the chapters are still worth fetching
+                refreshChapters(forChapters, null, result);
+            }
+        });
+        return result;
+    }
+
+    private static void refreshChapters(Novel novel, Novel details, MutableLiveData<Refresh> result) {
+        ChaptersViewModel.refreshChapters(novel, new Repository.Callback<Integer>() {
+            @Override
+            public void onComplete(Integer added) {
+                result.postValue(new Refresh(details, added, true, null));
+            }
+
+            @Override
+            public void onError(Exception e) {
+                String message = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                result.postValue(new Refresh(details, -1, false, message));
+            }
+        });
+    }
+
+    // Saves fetched details as the cached copy. A block / error page parses into a nameless novel; that is
+    // dropped (null) instead of replacing a good copy.
+    private static Novel saveDetails(Novel requested, Novel details) {
+        if (details == null || details.name == null || details.name.trim().isEmpty()) return null;
+        NovelMetadata metadata = NovelMapper.ToNovelMetadata(details);
+        metadata.cachedDate = System.currentTimeMillis();
+        RanobeDatabase.database().runInTransaction(() -> {
+            RanobeDatabase.database().novelMetadata().delete(requested.url);
+            RanobeDatabase.database().novelMetadata().save(metadata);
+        });
+        return details;
     }
 
     public LiveData<Novel> getDetails(Novel novel) {

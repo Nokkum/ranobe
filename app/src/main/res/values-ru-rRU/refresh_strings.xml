@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="refresh_new_chapters">
+        <item quantity="one">%1$d новая глава</item>
+        <item quantity="few">%1$d новые главы</item>
+        <item quantity="many">%1$d новых глав</item>
+        <item quantity="other">%1$d новой главы</item>
+    </plurals>
+    <string name="refresh_no_new_chapters">Новых глав нет</string>
+    <string name="refresh_chapters_updated">Список глав обновлён</string>
+    <string name="refresh_failed">Не удалось обновить главы: %1$s</string>
+</resources>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="author_subtitle_source">Works on %1$s</string>
+    <string name="author_subtitle_saved">Saved on this device</string>
+    <string name="author_empty">No other works by this author were found.</string>
+    <string name="author_unsupported">%1$s can\'t list an author\'s other works. Only novels saved on this device are shown, and there are none for this author.</string>
+    <string name="author_load_failed">Couldn\'t load this author\'s works.</string>
+    <string name="author_page_failed">Couldn\'t load more works</string>
+</resources>

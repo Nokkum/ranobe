@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="refresh_new_chapters">
+        <item quantity="one">%1$d new chapter</item>
+        <item quantity="other">%1$d new chapters</item>
+    </plurals>
+    <string name="refresh_no_new_chapters">No new chapters</string>
+    <string name="refresh_chapters_updated">Chapter list updated</string>
+    <string name="refresh_failed">Couldn\'t refresh the chapters: %1$s</string>
+</resources>

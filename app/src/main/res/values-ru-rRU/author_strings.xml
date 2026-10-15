@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="author_subtitle_source">Работы в источнике %1$s</string>
+    <string name="author_subtitle_saved">Сохранено на устройстве</string>
+    <string name="author_empty">Других работ этого автора не найдено.</string>
+    <string name="author_unsupported">Источник %1$s не умеет показывать другие работы автора. Показаны только сохранённые на устройстве ранобэ, и для этого автора их нет.</string>
+    <string name="author_load_failed">Не удалось загрузить работы автора.</string>
+    <string name="author_page_failed">Не удалось загрузить ещё</string>
+</resources>

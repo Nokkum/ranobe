@@ -8,9 +8,11 @@ import org.ranobe.ranobe.models.Filter;
 import org.ranobe.ranobe.models.Lang;
 import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.network.HttpClient;
+import org.ranobe.ranobe.sources.AuthorSearch;
 import org.ranobe.ranobe.sources.MadaraSearch;
 import org.ranobe.ranobe.sources.SearchFilterSupport;
 import org.ranobe.ranobe.sources.Source;
+import org.ranobe.ranobe.util.AuthorNames;
 import org.ranobe.ranobe.util.NumberUtils;
 import org.ranobe.ranobe.util.SourceUtils;
 
@@ -19,7 +21,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
-public class WordRain69 implements Source, SearchFilterSupport {
+public class WordRain69 implements Source, SearchFilterSupport, AuthorSearch {
 
     public static final String BASE_URL = "https://wordrain69.com";
     public static final int SOURCE_ID = 17;
@@ -73,7 +75,7 @@ public class WordRain69 implements Source, SearchFilterSupport {
         novel.cover = doc.select("div.summary_image > a > img").attr("data-src").trim();
         novel.summary = String.join("\n\n", doc.select("div.summary__content > p").eachText());
         novel.rating = NumberUtils.toFloat(doc.select("div.post-total-rating span.score").text().trim());
-        novel.authors = Arrays.asList(doc.select(".author-content > a").text().split(","));
+        novel.authors = MadaraSearch.authorsFrom(doc.selectFirst(".author-content"));
 
         List<String> genres = new ArrayList<>();
         for (Element element : doc.select(".genres-content > a")) {
@@ -159,20 +161,36 @@ public class WordRain69 implements Source, SearchFilterSupport {
             String web = SourceUtils.buildUrl(BASE_URL, "/page/", String.valueOf(page), "/?post_type=wp-manga&s=", filters.getKeyword(),
                     MadaraSearch.statusQuery(filters.hasStatus() ? filters.getStatus() : null));
             Element doc = Jsoup.parse(HttpClient.GET(web, new HashMap<>()));
-            for (Element element : doc.select(".c-tabs-item__content")) {
-                String url = element.select(".post-title a").attr("href").trim();
-
-                if (!url.isEmpty()) {
-                    Novel item = new Novel(url);
-                    item.sourceId = SOURCE_ID;
-                    item.name = element.select(".post-title a").text().trim();
-                    item.cover = element.select(".tab-thumb img").attr("data-src");
-                    MadaraSearch.fillFromCard(item, element);
-                    items.add(item);
-                }
-            }
+            items.addAll(parseCards(doc));
         }
 
         return items;
+    }
+
+    // the novels on a page of search results
+    private List<Novel> parseCards(Element doc) {
+        List<Novel> items = new ArrayList<>();
+        for (Element element : doc.select(".c-tabs-item__content")) {
+            String url = element.select(".post-title a").attr("href").trim();
+
+            if (!url.isEmpty()) {
+                Novel item = new Novel(url);
+                item.sourceId = SOURCE_ID;
+                item.name = element.select(".post-title a").text().trim();
+                item.cover = element.select(".tab-thumb img").attr("data-src");
+                MadaraSearch.fillFromCard(item, element);
+                items.add(item);
+            }
+        }
+        return items;
+    }
+
+    // the site's own author filter, which matches the name exactly; each result lists its authors, so a
+    // page that ignored the filter would still be cleaned up
+    @Override
+    public List<Novel> authorWorks(String author, int page) throws Exception {
+        String web = MadaraSearch.authorPageUrl(BASE_URL, author, page);
+        Element doc = Jsoup.parse(HttpClient.GET(web, new HashMap<>()));
+        return AuthorNames.keepWrittenBy(author, parseCards(doc), true);
     }
 }

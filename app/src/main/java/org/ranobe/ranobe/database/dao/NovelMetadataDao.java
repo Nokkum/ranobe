@@ -30,4 +30,9 @@ public interface NovelMetadataDao {
 
     @Query("SELECT * FROM novelmetadata WHERE url=:novelUrl")
     LiveData<NovelMetadata> getByUrl(String novelUrl);
+
+    // A first cut for the author page: rows whose authors text contains the name (the list is stored as one
+    // tab-separated string). The caller still compares names properly; LIKE only narrows what it reads.
+    @Query("SELECT * FROM novelmetadata WHERE authors LIKE '%' || :name || '%'")
+    List<NovelMetadata> listByAuthorText(String name);
 }
