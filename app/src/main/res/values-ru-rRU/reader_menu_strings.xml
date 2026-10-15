@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reader_chapter_number">Глава %1$s</string>
+    <string name="previous_chapter">Предыдущая</string>
+    <string name="next_chapter">Следующая</string>
+    <string name="reading_progress">Прогресс чтения</string>
+    <string name="reader_settings">Настройки</string>
+    <string name="reader_chapter_list">Главы</string>
+</resources>

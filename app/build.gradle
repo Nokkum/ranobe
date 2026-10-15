@@ -10,7 +10,7 @@ android {
         minSdk 23
         targetSdkVersion 36
         versionCode 16
-        versionName "v0.0.19"
+        versionName "v0.0.20"
 
         javaCompileOptions {
             annotationProcessorOptions {
@@ -24,19 +24,19 @@ android {
         downloader {
             dimension "version"
             applicationId "org.ranobe.downloader"
-            versionName "v0.0.19-downloader"
+            versionName "v0.0.20-downloader"
         }
 
         pro {
             dimension "version"
             applicationId "org.ranobe.downloader.pro"
-            versionName "v0.0.19-downloader-pro"
+            versionName "v0.0.20-downloader-pro"
         }
 
         ranobe {
             dimension "version"
             applicationId "org.ranobe.ranobe"
-            versionName "v0.0.19"
+            versionName "v0.0.20"
         }
     }
 
@@ -45,6 +45,13 @@ android {
             shrinkResources true
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    // Set custom APK output file names per flavor + build type
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            outputFileName = "ranobe-${variant.flavorName}-${variant.buildType.name}.apk"
         }
     }
 

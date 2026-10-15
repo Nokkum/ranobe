@@ -25,6 +25,7 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
+import androidx.fragment.app.FragmentActivity;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -237,7 +238,12 @@ public class Chapters extends BottomSheetDialogFragment implements ChapterAdapte
     private void setUpError(String error) {
         binding.progress.hide();
         if (originalItems.size() == 0) {
-            Error.navigateToErrorFragment(requireActivity(), error);
+            if (requireActivity() instanceof OnChapterPicked) {
+                // the reader has no error screen to navigate to, and reports a failed list itself
+                dismiss();
+            } else {
+                Error.navigateToErrorFragment(requireActivity(), error);
+            }
         }
     }
 
@@ -315,6 +321,13 @@ public class Chapters extends BottomSheetDialogFragment implements ChapterAdapte
 
     @Override
     public void onChapterItemClick(Chapter item) {
+        // opened from the reader: it is already on screen, so it moves to the chapter instead of stacking another reader
+        FragmentActivity host = requireActivity();
+        if (host instanceof OnChapterPicked) {
+            dismiss();
+            ((OnChapterPicked) host).onChapterPicked(item);
+            return;
+        }
         Bundle bundle = new Bundle();
         bundle.putParcelable(Ranobe.KEY_NOVEL, novel);
         bundle.putParcelable(Ranobe.KEY_CHAPTER, item);
@@ -601,6 +614,11 @@ public class Chapters extends BottomSheetDialogFragment implements ChapterAdapte
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true;
         return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS)
                 == PackageManager.PERMISSION_GRANTED;
+    }
+
+    // Implemented by an activity that wants to open the chosen chapter itself (the reader does).
+    public interface OnChapterPicked {
+        void onChapterPicked(Chapter chapter);
     }
 
     public class SearchBarTextWatcher implements TextWatcher {

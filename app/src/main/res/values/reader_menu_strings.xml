@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reader_chapter_number">Chapter %1$s</string>
+    <string name="previous_chapter">Previous</string>
+    <string name="next_chapter">Next</string>
+    <string name="reading_progress">Reading progress</string>
+    <string name="reader_settings">Settings</string>
+    <string name="reader_chapter_list">Chapters</string>
+</resources>

@@ -8,16 +8,7 @@
     <a href="https://github.com/Nokkum/ranobe/releases/latest" title="Download">
         <img height='30' src="https://img.shields.io/badge/download-2da44e?style=flat&logo=android&logoColor=white" alt="Download" title="Download">
     </a>
-    <a href="https://apt.izzysoft.de/fdroid/index/apk/org.ranobe.ranobe" title="Download from Izzydroid">
-        <img height='30' src="https://img.shields.io/endpoint?url=https://apt.izzysoft.de/fdroid/api/v1/shield/org.ranobe.ranobe" alt="Download from Izzydroid">
-    </a>
-    <a href="https://ranobe.atulpatare.in" title="Website">
-        <img height='30' src="https://img.shields.io/badge/website-F4F51E?style=flat&logo=internet-archive&logoColor=black" alt="Website" title="Website">
-    </a>
-    <a href="https://discord.gg/6CQ6u64dca" title="Join Discord">
-        <img height='30' src="https://img.shields.io/badge/discord-5865F2?style=flat&logo=discord&logoColor=white" alt="Join Discord" title="Join Discord">
-    </a>
-    <a href="https://github.com/ranobe-org" title="Github">
+    <a href="https://github.com/Nokkum" title="Github">
         <img height='30' src="https://img.shields.io/badge/github-ffffff?style=flat&logo=github&logoColor=black" alt="Check Github" title="Check Github">
     </a>
 </div>

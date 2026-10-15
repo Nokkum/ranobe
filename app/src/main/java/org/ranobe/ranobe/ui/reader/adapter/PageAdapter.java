@@ -1,5 +1,6 @@
 package org.ranobe.ranobe.ui.reader.adapter;
 
+import android.annotation.SuppressLint;
 import android.content.res.ColorStateList;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
@@ -114,6 +115,23 @@ public class PageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             if (item.type == TYPE_HEADER && item.chapter == chapter) return i;
         }
         return items.size();
+    }
+
+    // drops every chapter, for when the reader jumps somewhere the page doesn't cover
+    @SuppressLint("NotifyDataSetChanged")
+    public void clear() {
+        items.clear();
+        notifyDataSetChanged();
+    }
+
+    // position of the chapter's heading, or -1 when that chapter isn't on the page
+    public int positionOfChapter(String url) {
+        if (url == null) return -1;
+        for (int i = 0; i < items.size(); i++) {
+            Item item = items.get(i);
+            if (item.type == TYPE_HEADER && url.equals(item.chapter.url)) return i;
+        }
+        return -1;
     }
 
     public void appendEnd() {
