@@ -23,19 +23,19 @@ android {
     productFlavors {
         beta {
             dimension "version"
-            applicationId "org.ranobe.debug"
+            applicationId "org.ranobe.downloader"
             versionName "debug-v1.0.0"
         }
 
         pro {
             dimension "version"
-            applicationId "org.ranobe.pro"
+            applicationId "org.ranobe.downloader.pro"
             versionName "pro-v1.0.0"
         }
 
         ranobe {
             dimension "version"
-            applicationId "org.ranobe.release"
+            applicationId "org.ranobe.ranobe"
             versionName "release-v1.0.0"
         }
     }

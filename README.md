@@ -36,6 +36,7 @@
   - per Genre searching
   - per Novel Status searching
 - Chapter Search and Sort
+- Chapter deletion and multi-select deletion (does not touch reading history)
 - Continuous Vertical Reading
 - Light and Dark modes
 - Customize reading experience
@@ -82,4 +83,4 @@ in the app. It is collecting from the sources freely available through any web b
 > I push updates to a private repository and test features before pushing to this repository.
 
 > [!IMPORTANT]
-> This repository is a fork of the official [Ranobe](https://github.com/ranobe-org/ranobe).
+> This repository was once a fork of the official [Ranobe](https://github.com/ranobe-org/ranobe).
