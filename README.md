@@ -77,5 +77,9 @@ The developers of this application does not have any affiliation with the conten
 in the app. It is collecting from the sources freely available through any web browser.
 
 ## **NOTICE**
+
+> [!NOTE]
+> I push updates to a private repository and test features before pushing to this repository.
+
 > [!IMPORTANT]
 > This repository is a fork of the official [Ranobe](https://github.com/ranobe-org/ranobe).
