@@ -31,7 +31,10 @@
 - Multi-lingual sources (enable - disable)
   - English
   - Russian
-- Searching with keywords
+- Searching Novels
+  - Live searching
+  - per Genre searching
+  - per Novel Status searching
 - Chapter Search and Sort
 - Continuous Vertical Reading
 - Light and Dark modes
@@ -68,20 +71,11 @@
     - [x] download chapters for offline view, save everything to db
     - [x] saving read state for each item
 
-#### could have
-
-- [x] advanced search techniques
-- [x] genre searching capabilities
-- [ ] source management tools ?
-- [ ] export into x formats
-- [ ] metrics if possible
-- [ ] backup data, migrations
-- [x] novel updates
-- [ ] animations
-
 ### Disclaimer
 
 The developers of this application does not have any affiliation with the content available 
 in the app. It is collecting from the sources freely available through any web browser.
 
-This repository is a fork of the official [Ranobe](https://github.com/ranobe-org/ranobe).
+## **NOTICE**
+> [!IMPORTANT]
+> This repository is a fork of the official [Ranobe](https://github.com/ranobe-org/ranobe).
