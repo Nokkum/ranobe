@@ -34,6 +34,11 @@ public interface ReadHistoryDao {
             "GROUP BY novelUrl ORDER BY timestamp DESC LIMIT 100")
     LiveData<List<ReadHistory>> getLatestReadPerNovel();
 
+    // every row, for a backup. Without the saved chapter text: nothing reads it back and it can be huge.
+    @Query("SELECT url, novelUrl, NULL AS content, name, updated, id, position, readerOffset, timestamp, cover, novelName, sourceId " +
+            "FROM readhistory ORDER BY timestamp DESC")
+    List<ReadHistory> listAllSync();
+
     @Query("SELECT r.* FROM readhistory r INNER JOIN novel n ON r.novelUrl = n.url ORDER BY timestamp DESC LIMIT 1")
     LiveData<ReadHistory> getLastReadHistory();
 

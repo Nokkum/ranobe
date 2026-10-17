@@ -310,6 +310,93 @@
 
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Backup -->
+        <TextView
+            style="@style/SectionTitle"
+            android:text="@string/settings_backup" />
+
+        <com.google.android.material.card.MaterialCardView
+            style="@style/SectionCard">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!-- the rows only label the buttons below them -->
+                <org.ranobe.ranobe.ui.views.SettingOptionView
+                    android:id="@+id/library_backup_option"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:settingIcon="@drawable/ic_library"
+                    app:settingSubtitle="@string/backup_library_sub"
+                    app:settingTitle="@string/backup_library" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="72dp"
+                    android:layout_marginEnd="16dp"
+                    android:layout_marginBottom="12dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/library_export"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/backup_export" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/library_import"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="@string/backup_import" />
+
+                </LinearLayout>
+
+                <com.google.android.material.divider.MaterialDivider
+                    style="@style/SettingsDivider" />
+
+                <org.ranobe.ranobe.ui.views.SettingOptionView
+                    android:id="@+id/history_backup_option"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:settingIcon="@drawable/ic_history"
+                    app:settingSubtitle="@string/backup_history_sub"
+                    app:settingTitle="@string/backup_history" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="72dp"
+                    android:layout_marginEnd="16dp"
+                    android:layout_marginBottom="12dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/history_export"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/backup_export" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/history_import"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="@string/backup_import" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
         <!-- About -->
         <TextView
             style="@style/SectionTitle"

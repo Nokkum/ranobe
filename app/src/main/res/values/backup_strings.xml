@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_backup">Backup</string>
+    <string name="backup_library">Library bookmarks</string>
+    <string name="backup_library_sub">Save the novels in your library to a file, or restore them from one</string>
+    <string name="backup_history">Reading history</string>
+    <string name="backup_history_sub">Save what you have read and where you stopped, or restore it</string>
+    <string name="backup_export">Export</string>
+    <string name="backup_import">Import</string>
+
+    <plurals name="backup_exported_library">
+        <item quantity="one">Exported %1$d bookmark</item>
+        <item quantity="other">Exported %1$d bookmarks</item>
+    </plurals>
+    <plurals name="backup_exported_history">
+        <item quantity="one">Exported %1$d history entry</item>
+        <item quantity="other">Exported %1$d history entries</item>
+    </plurals>
+    <string name="backup_imported_library">Library imported: %1$d added, %2$d already saved</string>
+    <string name="backup_imported_history">History imported: %1$d added, %2$d updated, %3$d already up to date</string>
+    <plurals name="backup_skipped_invalid">
+        <item quantity="one">%1$d unreadable entry was skipped.</item>
+        <item quantity="other">%1$d unreadable entries were skipped.</item>
+    </plurals>
+
+    <string name="backup_problem_title">Couldn\'t finish</string>
+    <string name="backup_error_read">That file couldn\'t be read.</string>
+    <string name="backup_error_write">The file couldn\'t be saved there. Pick another place and try again.</string>
+    <string name="backup_error_not_backup">That isn\'t a Ranobe backup file.</string>
+    <string name="backup_error_is_library">That is a library bookmarks backup. Import it under Library bookmarks.</string>
+    <string name="backup_error_is_history">That is a reading history backup. Import it under Reading history.</string>
+    <string name="backup_error_newer">That backup was made by a newer version of the app. Update the app to import it.</string>
+    <string name="backup_error_too_large">That file is too large to be a backup.</string>
+    <string name="backup_error_failed">Something went wrong. Nothing was changed.</string>
+    <string name="backup_no_file_picker">No app on this device can choose files.</string>
+</resources>

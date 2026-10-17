@@ -1,6 +1,8 @@
 package org.ranobe.ranobe.ui.settings;
 
 import android.Manifest;
+import android.app.Activity;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -31,13 +33,23 @@ import org.ranobe.ranobe.network.WtrLabSession;
 import org.ranobe.ranobe.sources.en.WtrLab;
 import org.ranobe.ranobe.ui.settings.viewmodel.SettingsViewModel;
 import org.ranobe.ranobe.ui.views.GetPro;
+import org.ranobe.ranobe.util.BackupManager;
 import org.ranobe.ranobe.worker.ChapterUpdateScheduler;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 public class Settings extends Fragment {
 
     private FragmentSettingsBinding binding;
     private SettingsViewModel viewModel;
     private ActivityResultLauncher<String> notificationPermissionLauncher;
+    // the file picker for each backup action; each one knows what to do with the file it returns
+    private ActivityResultLauncher<Intent> libraryExportPicker;
+    private ActivityResultLauncher<Intent> libraryImportPicker;
+    private ActivityResultLauncher<Intent> historyExportPicker;
+    private ActivityResultLauncher<Intent> historyImportPicker;
 
     public Settings() {
     }
@@ -59,6 +71,10 @@ public class Settings extends Fragment {
                     }
                 }
         );
+        libraryExportPicker = registerPicker(uri -> viewModel.runBackup(BackupManager.Kind.EXPORT_LIBRARY, uri));
+        libraryImportPicker = registerPicker(uri -> viewModel.runBackup(BackupManager.Kind.IMPORT_LIBRARY, uri));
+        historyExportPicker = registerPicker(uri -> viewModel.runBackup(BackupManager.Kind.EXPORT_HISTORY, uri));
+        historyImportPicker = registerPicker(uri -> viewModel.runBackup(BackupManager.Kind.IMPORT_HISTORY, uri));
     }
 
     @Override
@@ -113,6 +129,8 @@ public class Settings extends Fragment {
             binding.scrollSpeedSetting.speedLabel.setText(Ranobe.getSpeedLabel(requireContext(), speed));
         });
 
+        setUpBackup();
+
         binding.projectLink.setOnClickListener(v -> openLink(Ranobe.RANOBE_GITHUB_LINK));
         binding.musicPlayerLink.setOnClickListener(v -> openLink(Ranobe.MP_LITE_GITHUB_LINK));
         binding.discordLink.setOnClickListener(v -> openLink(Ranobe.DISCORD_INVITE_LINK));
@@ -136,6 +154,124 @@ public class Settings extends Fragment {
         binding.scrollSpeedSetting.speedSlider.setValue(speed);
         binding.scrollSpeedSetting.speedLabel.setText(Ranobe.getSpeedLabel(requireContext(), speed));
         refreshWtrLabStatus();
+    }
+
+    private interface OnFilePicked {
+        void onPicked(Uri uri);
+    }
+
+    private ActivityResultLauncher<Intent> registerPicker(OnFilePicked callback) {
+        return registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+            Intent data = result.getData();
+            if (result.getResultCode() != Activity.RESULT_OK || data == null || data.getData() == null) return;
+            callback.onPicked(data.getData());
+        });
+    }
+
+    // Export and Import for the library bookmarks and the reading history.
+    private void setUpBackup() {
+        // the rows only label the buttons under them
+        binding.libraryBackupOption.setClickable(false);
+        binding.historyBackupOption.setClickable(false);
+
+        binding.libraryExport.setOnClickListener(v -> pickExportFile(libraryExportPicker, "library"));
+        binding.libraryImport.setOnClickListener(v -> pickImportFile(libraryImportPicker));
+        binding.historyExport.setOnClickListener(v -> pickExportFile(historyExportPicker, "history"));
+        binding.historyImport.setOnClickListener(v -> pickImportFile(historyImportPicker));
+
+        // one job at a time: the buttons wait while one runs
+        viewModel.isBackupBusy().observe(getViewLifecycleOwner(), busy -> {
+            boolean enabled = !Boolean.TRUE.equals(busy);
+            binding.libraryExport.setEnabled(enabled);
+            binding.libraryImport.setEnabled(enabled);
+            binding.historyExport.setEnabled(enabled);
+            binding.historyImport.setEnabled(enabled);
+        });
+        viewModel.getBackupResult().observe(getViewLifecycleOwner(), result -> {
+            if (result == null) return;
+            viewModel.clearBackupResult();
+            showBackupResult(result);
+        });
+    }
+
+    // the system's "save as" screen, with a name to start from
+    private void pickExportFile(ActivityResultLauncher<Intent> picker, String what) {
+        String day = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT)
+                .addCategory(Intent.CATEGORY_OPENABLE)
+                .setType("application/json")
+                .putExtra(Intent.EXTRA_TITLE, "ranobe-" + what + "-" + day + ".json");
+        launchPicker(picker, intent);
+    }
+
+    // Any file may be chosen: file managers label a .json file in different ways, and the content is checked
+    // before anything is imported.
+    private void pickImportFile(ActivityResultLauncher<Intent> picker) {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT)
+                .addCategory(Intent.CATEGORY_OPENABLE)
+                .setType("*/*");
+        launchPicker(picker, intent);
+    }
+
+    private void launchPicker(ActivityResultLauncher<Intent> picker, Intent intent) {
+        try {
+            picker.launch(intent);
+        } catch (ActivityNotFoundException e) {
+            Snackbar.make(binding.getRoot(), R.string.backup_no_file_picker, Snackbar.LENGTH_LONG).show();
+        }
+    }
+
+    // A success is a passing note; a problem stays until it is read.
+    private void showBackupResult(BackupManager.Result result) {
+        if (!result.succeeded()) {
+            new MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(R.string.backup_problem_title)
+                    .setMessage(problemMessage(result.problem))
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show();
+            return;
+        }
+
+        String message;
+        switch (result.kind) {
+            case EXPORT_LIBRARY:
+                message = getResources().getQuantityString(R.plurals.backup_exported_library, result.added, result.added);
+                break;
+            case EXPORT_HISTORY:
+                message = getResources().getQuantityString(R.plurals.backup_exported_history, result.added, result.added);
+                break;
+            case IMPORT_LIBRARY:
+                message = getString(R.string.backup_imported_library, result.added, result.kept);
+                break;
+            default:
+                message = getString(R.string.backup_imported_history, result.added, result.updated, result.kept);
+                break;
+        }
+        if (result.invalid > 0) {
+            message += " " + getResources().getQuantityString(R.plurals.backup_skipped_invalid, result.invalid, result.invalid);
+        }
+        Snackbar.make(binding.getRoot(), message, Snackbar.LENGTH_LONG).setTextMaxLines(5).show();
+    }
+
+    private int problemMessage(BackupManager.Problem problem) {
+        switch (problem) {
+            case READ_FAILED:
+                return R.string.backup_error_read;
+            case WRITE_FAILED:
+                return R.string.backup_error_write;
+            case NOT_BACKUP:
+                return R.string.backup_error_not_backup;
+            case FILE_IS_LIBRARY_BACKUP:
+                return R.string.backup_error_is_library;
+            case FILE_IS_HISTORY_BACKUP:
+                return R.string.backup_error_is_history;
+            case NEWER_VERSION:
+                return R.string.backup_error_newer;
+            case TOO_LARGE:
+                return R.string.backup_error_too_large;
+            default:
+                return R.string.backup_error_failed;
+        }
     }
 
     private void confirmWtrLabSignOut() {

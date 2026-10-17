@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_backup">Резервная копия</string>
+    <string name="backup_library">Закладки библиотеки</string>
+    <string name="backup_library_sub">Сохранить ранобэ из библиотеки в файл или восстановить их из файла</string>
+    <string name="backup_history">История чтения</string>
+    <string name="backup_history_sub">Сохранить прочитанное и место, где вы остановились, или восстановить</string>
+    <string name="backup_export">Экспорт</string>
+    <string name="backup_import">Импорт</string>
+
+    <plurals name="backup_exported_library">
+        <item quantity="one">Экспортирована %1$d закладка</item>
+        <item quantity="few">Экспортированы %1$d закладки</item>
+        <item quantity="many">Экспортировано %1$d закладок</item>
+        <item quantity="other">Экспортировано %1$d закладки</item>
+    </plurals>
+    <plurals name="backup_exported_history">
+        <item quantity="one">Экспортирована %1$d запись истории</item>
+        <item quantity="few">Экспортированы %1$d записи истории</item>
+        <item quantity="many">Экспортировано %1$d записей истории</item>
+        <item quantity="other">Экспортировано %1$d записи истории</item>
+    </plurals>
+    <string name="backup_imported_library">Библиотека импортирована: добавлено %1$d, уже было %2$d</string>
+    <string name="backup_imported_history">История импортирована: добавлено %1$d, обновлено %2$d, без изменений %3$d</string>
+    <plurals name="backup_skipped_invalid">
+        <item quantity="one">Пропущена %1$d нечитаемая запись.</item>
+        <item quantity="few">Пропущены %1$d нечитаемые записи.</item>
+        <item quantity="many">Пропущено %1$d нечитаемых записей.</item>
+        <item quantity="other">Пропущено %1$d нечитаемой записи.</item>
+    </plurals>
+
+    <string name="backup_problem_title">Не удалось завершить</string>
+    <string name="backup_error_read">Не удалось прочитать файл.</string>
+    <string name="backup_error_write">Не удалось сохранить файл здесь. Выберите другое место и повторите попытку.</string>
+    <string name="backup_error_not_backup">Это не файл резервной копии Ranobe.</string>
+    <string name="backup_error_is_library">Это резервная копия закладок библиотеки. Импортируйте её в разделе «Закладки библиотеки».</string>
+    <string name="backup_error_is_history">Это резервная копия истории чтения. Импортируйте её в разделе «История чтения».</string>
+    <string name="backup_error_newer">Эта копия создана более новой версией приложения. Обновите приложение, чтобы импортировать её.</string>
+    <string name="backup_error_too_large">Файл слишком большой для резервной копии.</string>
+    <string name="backup_error_failed">Что-то пошло не так. Ничего не изменилось.</string>
+    <string name="backup_no_file_picker">На устройстве нет приложения для выбора файлов.</string>
+</resources>
