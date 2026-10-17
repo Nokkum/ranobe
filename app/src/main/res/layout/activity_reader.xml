@@ -108,10 +108,11 @@
 
         </LinearLayout>
 
-        <!-- lower: settings in the left corner, chapter list in the right one -->
+        <!-- lower: settings in the left corner, the phone's clock between, chapter list in the right corner -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center_vertical"
             android:orientation="horizontal">
 
             <com.google.android.material.button.MaterialButton
@@ -123,10 +124,16 @@
                 android:text="@string/reader_settings"
                 app:icon="@drawable/ic_settings" />
 
-            <Space
+            <!-- the system bars are hidden while reading, so this is the only clock on screen. TextClock keeps
+                 itself current and follows the phone's 12 / 24 hour setting, time zone and language -->
+            <TextClock
+                android:id="@+id/reader_clock"
                 android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:maxLines="1"
+                android:textAppearance="?attr/textAppearanceTitleMedium" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/chapter_list_button"

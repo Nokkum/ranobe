@@ -472,6 +472,7 @@ public class ReaderActivity extends AppCompatActivity implements CustomizeReader
         binding.bottomBar.setBackgroundColor(barColor);
         binding.chapterNumber.setTextColor(text);
         binding.chapterTitle.setTextColor(ColorUtils.setAlphaComponent(text, 0xB3));
+        binding.readerClock.setTextColor(text);
 
         // a button that can't be used (no previous chapter, list still loading) fades
         ColorStateList content = new ColorStateList(
