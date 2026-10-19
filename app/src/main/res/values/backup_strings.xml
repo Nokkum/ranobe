@@ -4,7 +4,7 @@
     <string name="backup_library">Library bookmarks</string>
     <string name="backup_library_sub">Save the novels in your library to a file, or restore them from one</string>
     <string name="backup_history">Reading history</string>
-    <string name="backup_history_sub">Save what you have read and where you stopped, or restore it</string>
+    <string name="backup_history_sub">Save the last chapter you read in each novel and where you stopped, or restore it</string>
     <string name="backup_export">Export</string>
     <string name="backup_import">Import</string>
 
@@ -13,8 +13,8 @@
         <item quantity="other">Exported %1$d bookmarks</item>
     </plurals>
     <plurals name="backup_exported_history">
-        <item quantity="one">Exported %1$d history entry</item>
-        <item quantity="other">Exported %1$d history entries</item>
+        <item quantity="one">Exported the last chapter read of %1$d novel</item>
+        <item quantity="other">Exported the last chapter read of %1$d novels</item>
     </plurals>
     <string name="backup_imported_library">Library imported: %1$d added, %2$d already saved</string>
     <string name="backup_imported_history">History imported: %1$d added, %2$d updated, %3$d already up to date</string>

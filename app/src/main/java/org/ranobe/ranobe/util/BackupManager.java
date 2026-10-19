@@ -108,10 +108,8 @@ public final class BackupManager {
 
     private static Result exportHistory(ContentResolver resolver, Uri uri) {
         try {
-            List<ReadHistory> history = new ArrayList<>();
-            for (ReadHistory entry : RanobeDatabase.database().readHistory().listAllSync()) {
-                if (entry.url != null && !entry.url.isEmpty()) history.add(entry);
-            }
+            // only the last chapter read of each novel, not every chapter ever opened
+            List<ReadHistory> history = BackupMerge.lastReadPerNovel(RanobeDatabase.database().readHistory().listAllSync());
             write(resolver, uri, BackupCodec.historyToJson(history, System.currentTimeMillis()));
             return Result.done(Kind.EXPORT_HISTORY, history.size(), 0, 0, 0);
         } catch (IOException | SecurityException e) {

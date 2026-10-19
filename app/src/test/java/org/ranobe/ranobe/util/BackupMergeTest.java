@@ -32,6 +32,15 @@ public class BackupMergeTest {
         return entry;
     }
 
+    private static ReadHistory chapter(String novelUrl, String url, float number, long timestamp) {
+        ReadHistory entry = new ReadHistory();
+        entry.novelUrl = novelUrl;
+        entry.url = url;
+        entry.id = number;
+        entry.timestamp = timestamp;
+        return entry;
+    }
+
     // ---- library ----
 
     @Test
@@ -145,5 +154,122 @@ public class BackupMergeTest {
         assertTrue(plan.toSave.isEmpty());
         assertEquals(1, plan.kept);
         assertEquals(new ArrayList<ReadHistory>(), plan.toSave);
+    }
+
+    // ---- what a history export holds: the last chapter read of each novel ----
+
+    @Test
+    public void lastRead_keepsOnlyTheLatestChapterOfEachNovel() {
+        List<ReadHistory> all = Arrays.asList(
+                chapter("https://example.org/a", "https://example.org/a/1", 1, 100L),
+                chapter("https://example.org/a", "https://example.org/a/2", 2, 200L),
+                chapter("https://example.org/a", "https://example.org/a/3", 3, 300L),
+                chapter("https://example.org/b", "https://example.org/b/1", 1, 150L),
+                chapter("https://example.org/b", "https://example.org/b/2", 2, 250L));
+
+        List<ReadHistory> last = BackupMerge.lastReadPerNovel(all);
+
+        assertEquals(2, last.size());
+        assertEquals("https://example.org/a/3", last.get(0).url);
+        assertEquals("https://example.org/b/2", last.get(1).url);
+    }
+
+    @Test
+    public void lastRead_isTheChapterReadMostRecentlyNotTheHighestNumber() {
+        // chapter 10 was read first, then the reader went back to chapter 3
+        List<ReadHistory> last = BackupMerge.lastReadPerNovel(Arrays.asList(
+                chapter("https://example.org/a", "https://example.org/a/10", 10, 100L),
+                chapter("https://example.org/a", "https://example.org/a/3", 3, 200L)));
+
+        assertEquals(1, last.size());
+        assertEquals("https://example.org/a/3", last.get(0).url);
+    }
+
+    @Test
+    public void lastRead_newestNovelComesFirst() {
+        List<ReadHistory> last = BackupMerge.lastReadPerNovel(Arrays.asList(
+                chapter("https://example.org/old", "https://example.org/old/1", 1, 100L),
+                chapter("https://example.org/new", "https://example.org/new/1", 1, 900L),
+                chapter("https://example.org/mid", "https://example.org/mid/1", 1, 500L)));
+
+        assertEquals("https://example.org/new", last.get(0).novelUrl);
+        assertEquals("https://example.org/mid", last.get(1).novelUrl);
+        assertEquals("https://example.org/old", last.get(2).novelUrl);
+    }
+
+    @Test
+    public void lastRead_chaptersMarkedAtTheSameMomentPickTheHigherNumber() {
+        // marking a run of chapters as read in one go gives them all the same time
+        List<ReadHistory> all = Arrays.asList(
+                chapter("https://example.org/a", "https://example.org/a/5", 5, 100L),
+                chapter("https://example.org/a", "https://example.org/a/7", 7, 100L),
+                chapter("https://example.org/a", "https://example.org/a/6", 6, 100L));
+
+        assertEquals("https://example.org/a/7", BackupMerge.lastReadPerNovel(all).get(0).url);
+    }
+
+    @Test
+    public void lastRead_doesNotDependOnTheOrderOfTheList() {
+        List<ReadHistory> all = new ArrayList<>(Arrays.asList(
+                chapter("https://example.org/a", "https://example.org/a/x", 4, 100L),
+                chapter("https://example.org/a", "https://example.org/a/y", 4, 100L),
+                chapter("https://example.org/b", "https://example.org/b/1", 1, 100L),
+                chapter("https://example.org/a", "https://example.org/a/z", 4, 100L)));
+        List<ReadHistory> forward = BackupMerge.lastReadPerNovel(all);
+        Collections.reverse(all);
+        List<ReadHistory> backward = BackupMerge.lastReadPerNovel(all);
+
+        assertEquals(forward.size(), backward.size());
+        for (int i = 0; i < forward.size(); i++) {
+            assertEquals(forward.get(i).url, backward.get(i).url);
+        }
+    }
+
+    @Test
+    public void lastRead_leavesOutRowsWithNoNovel() {
+        ReadHistory orphan = chapter(null, "https://example.org/x/1", 1, 100L);
+        ReadHistory blank = chapter("", "https://example.org/y/1", 1, 100L);
+
+        List<ReadHistory> last = BackupMerge.lastReadPerNovel(Arrays.asList(orphan, blank,
+                chapter("https://example.org/a", "https://example.org/a/1", 1, 100L)));
+
+        assertEquals(1, last.size());
+        assertEquals("https://example.org/a", last.get(0).novelUrl);
+    }
+
+    @Test
+    public void lastRead_emptyHistoryGivesAnEmptyList() {
+        assertTrue(BackupMerge.lastReadPerNovel(new ArrayList<ReadHistory>()).isEmpty());
+    }
+
+    @Test
+    public void lastRead_theFileHoldsOneEntryPerNovelAndNoOtherChapters() throws Exception {
+        List<ReadHistory> all = new ArrayList<>();
+        for (int i = 1; i <= 40; i++) all.add(chapter("https://example.org/a", "https://example.org/a/" + i, i, i * 10L));
+        // novel B was read after novel A, so it comes first
+        for (int i = 1; i <= 25; i++) all.add(chapter("https://example.org/b", "https://example.org/b/" + i, i, 1000L + i * 10L));
+
+        String json = BackupCodec.historyToJson(BackupMerge.lastReadPerNovel(all), 1L);
+        BackupCodec.Parsed<ReadHistory> parsed = BackupCodec.parseHistory(json);
+
+        assertEquals(2, parsed.items.size());
+        assertEquals("https://example.org/b/25", parsed.items.get(0).url);
+        assertEquals("https://example.org/a/40", parsed.items.get(1).url);
+        assertTrue(!json.contains("https://example.org/a/39"));
+    }
+
+    @Test
+    public void lastRead_aFileOfOnlyLastChaptersStillImportsCorrectly() {
+        // the device has read novel A up to chapter 5; the file says novel A was last read at chapter 8 and
+        // novel B at chapter 2. Both land, and each novel's latest chapter is the most recently read one.
+        Map<String, Long> onDevice = new HashMap<>();
+        onDevice.put("https://example.org/a/5", 500L);
+
+        BackupMerge.HistoryPlan plan = BackupMerge.planHistory(onDevice, Arrays.asList(
+                chapter("https://example.org/a", "https://example.org/a/8", 8, 900L),
+                chapter("https://example.org/b", "https://example.org/b/2", 2, 400L)));
+
+        assertEquals(2, plan.added);
+        assertEquals(0, plan.kept);
     }
 }

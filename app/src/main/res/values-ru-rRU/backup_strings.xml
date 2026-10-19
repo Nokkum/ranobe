@@ -4,7 +4,7 @@
     <string name="backup_library">Закладки библиотеки</string>
     <string name="backup_library_sub">Сохранить ранобэ из библиотеки в файл или восстановить их из файла</string>
     <string name="backup_history">История чтения</string>
-    <string name="backup_history_sub">Сохранить прочитанное и место, где вы остановились, или восстановить</string>
+    <string name="backup_history_sub">Сохранить последнюю прочитанную главу каждого ранобэ и место, где вы остановились, или восстановить</string>
     <string name="backup_export">Экспорт</string>
     <string name="backup_import">Импорт</string>
 
@@ -15,10 +15,10 @@
         <item quantity="other">Экспортировано %1$d закладки</item>
     </plurals>
     <plurals name="backup_exported_history">
-        <item quantity="one">Экспортирована %1$d запись истории</item>
-        <item quantity="few">Экспортированы %1$d записи истории</item>
-        <item quantity="many">Экспортировано %1$d записей истории</item>
-        <item quantity="other">Экспортировано %1$d записи истории</item>
+        <item quantity="one">Экспортировано ранобэ: %1$d (последняя прочитанная глава)</item>
+        <item quantity="few">Экспортировано ранобэ: %1$d (последняя прочитанная глава каждого)</item>
+        <item quantity="many">Экспортировано ранобэ: %1$d (последняя прочитанная глава каждого)</item>
+        <item quantity="other">Экспортировано ранобэ: %1$d (последняя прочитанная глава каждого)</item>
     </plurals>
     <string name="backup_imported_library">Библиотека импортирована: добавлено %1$d, уже было %2$d</string>
     <string name="backup_imported_history">История импортирована: добавлено %1$d, обновлено %2$d, без изменений %3$d</string>

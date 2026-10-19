@@ -4,16 +4,47 @@ import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.models.ReadHistory;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-// What an import changes. Importing only ever adds or updates: nothing already on the device is deleted,
-// so importing the same file twice, or an old file over newer data, can't lose anything.
+// What goes into a history backup, and what an import changes. Importing only ever adds or updates: nothing
+// already on the device is deleted, so importing the same file twice, or an old file over newer data, can't
+// lose anything.
 public final class BackupMerge {
     private BackupMerge() {
+    }
+
+    // The chapter each novel was read to: the one read most recently, which is what the History screen and
+    // "continue reading" show. If two were marked at the same moment (marking several chapters at once), the
+    // higher chapter number wins, then the url, so the pick never depends on the order of the list.
+    // Newest novel first. A row with no novel can't be shown anywhere, so it is left out.
+    public static List<ReadHistory> lastReadPerNovel(List<ReadHistory> history) {
+        Map<String, ReadHistory> last = new LinkedHashMap<>();
+        for (ReadHistory entry : history) {
+            if (entry.novelUrl == null || entry.novelUrl.isEmpty()) continue;
+            ReadHistory known = last.get(entry.novelUrl);
+            if (known == null || isLater(entry, known)) last.put(entry.novelUrl, entry);
+        }
+        List<ReadHistory> result = new ArrayList<>(last.values());
+        Collections.sort(result, new Comparator<ReadHistory>() {
+            @Override
+            public int compare(ReadHistory a, ReadHistory b) {
+                if (a.timestamp != b.timestamp) return a.timestamp > b.timestamp ? -1 : 1;
+                return a.novelUrl.compareTo(b.novelUrl);
+            }
+        });
+        return result;
+    }
+
+    private static boolean isLater(ReadHistory entry, ReadHistory known) {
+        if (entry.timestamp != known.timestamp) return entry.timestamp > known.timestamp;
+        if (entry.id != known.id) return entry.id > known.id;
+        return entry.url != null && known.url != null && entry.url.compareTo(known.url) > 0;
     }
 
     public static final class LibraryPlan {
