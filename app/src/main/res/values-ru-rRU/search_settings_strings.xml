@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_search">Поиск</string>
+    <string name="settings_search_timeout">Время ожидания поиска</string>
+    <string name="settings_search_timeout_sub">Сколько поиск ждёт, если ничего не найдено, прежде чем показать \u00abНичего не найдено\u00bb</string>
+    <string name="search_timeout_seconds">%1$d с</string>
+</resources>

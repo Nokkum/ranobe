@@ -154,6 +154,11 @@ public class WordRain69 implements Source, SearchFilterSupport, AuthorSearch {
     }
 
     @Override
+    public boolean reportsChapterCountInResults() {
+        return true;
+    }
+
+    @Override
     public List<Novel> search(Filter filters, int page) throws Exception {
         List<Novel> items = new ArrayList<>();
 

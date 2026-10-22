@@ -2,11 +2,13 @@ package org.ranobe.ranobe.ui.search.viewmodel;
 
 import android.os.Handler;
 import android.os.Looper;
+import android.text.TextUtils;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
+import org.ranobe.ranobe.App;
 import org.ranobe.ranobe.config.Ranobe;
 import org.ranobe.ranobe.database.RanobeDatabase;
 import org.ranobe.ranobe.models.DataSource;
@@ -16,22 +18,30 @@ import org.ranobe.ranobe.network.repository.Repository;
 import org.ranobe.ranobe.sources.SearchFilterSupport;
 import org.ranobe.ranobe.sources.Source;
 import org.ranobe.ranobe.sources.SourceManager;
+import org.ranobe.ranobe.util.ChapterRanges;
 import org.ranobe.ranobe.util.SearchFilters;
+import org.ranobe.ranobe.util.SearchPlan;
+import org.ranobe.ranobe.util.SearchPreferences;
 import org.ranobe.ranobe.util.SearchRanking;
+import org.ranobe.ranobe.util.SearchTimeouts;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
 public class SearchViewModel extends ViewModel {
     // Id of the row that lists matches from the user's own library.
     public static final int LIBRARY_ID = -1;
     private static final int LIBRARY_LIMIT = 30;
+    // names for the three option sections that can be opened out (see isPickerOpen)
+    public static final String PICKER_SOURCES = "sources";
+    public static final String PICKER_CHAPTERS = "chapters";
+    public static final String PICKER_STATUS = "status";
     // When a filter the app applies itself empties a whole page, look at this many following pages
     // before giving up for now.
     private static final int MAX_AUTO_PAGES = 5;
@@ -42,6 +52,10 @@ public class SearchViewModel extends ViewModel {
     private final MutableLiveData<Boolean> loading = new MutableLiveData<>(false);
     private final MutableLiveData<List<String>> failedSources = new MutableLiveData<>(Collections.emptyList());
     private final MutableLiveData<List<String>> skippedSources = new MutableLiveData<>(Collections.emptyList());
+    // set when a search has waited the configured time with nothing to show; cleared as soon as a result comes
+    private final MutableLiveData<Boolean> timedOut = new MutableLiveData<>(false);
+    private final Runnable timeoutTask = this::onTimeout;
+    private boolean timeoutArmed = false;
     private final LinkedHashMap<Integer, SourceState> states = new LinkedHashMap<>();
     // sources in the order their first results arrived, so rows already on screen never move
     private final List<Integer> arrival = new ArrayList<>();
@@ -50,18 +64,28 @@ public class SearchViewModel extends ViewModel {
     // bumped on every new search so late answers from an older one are dropped
     private int generation = 0;
 
-    // what to search: null means every enabled source
-    private Set<Integer> selectedSources = null;
-    private String status = SearchFilters.ANY;
+    // What to search. For the sources, statuses and chapter ranges an empty set means "all" / "any": the
+    // person has narrowed nothing. A set with members is the narrowing.
+    private final Set<Integer> selectedSources = new LinkedHashSet<>();
+    private final Set<String> statuses = new LinkedHashSet<>();
+    private final Set<String> chapterRanges = new LinkedHashSet<>();
     private String genre = SearchFilters.ANY;
+    // The option sections the person has opened out with nothing chosen yet. A section with a choice is open
+    // regardless; this only remembers the open-but-empty state across screens.
+    private final Set<String> openPickers = new HashSet<>();
 
     // One source's results so far, and where its paging stands.
     private static final class SourceState {
         final DataSource source;
         // The source cannot filter status itself but reports it, so the app drops what does not match.
         final boolean filterStatusHere;
+        // The source filters status itself, one status per request: the statuses to ask it about, one request
+        // each. Empty when the source isn't asked to filter status that way.
+        final List<String> nativeStatuses;
         // Likewise for genres.
         final boolean filterGenreHere;
+        // The source reports chapter counts, so the app drops the novels outside the chosen ranges.
+        final boolean filterChaptersHere;
         final List<Novel> novels = new ArrayList<>();
         final Set<String> seenUrls = new HashSet<>();
         // every address the source has sent, shown or not: a page that adds none of them ends the source
@@ -72,10 +96,13 @@ public class SearchViewModel extends ViewModel {
         boolean endReached;
         boolean failed;
 
-        SourceState(DataSource source, boolean filterStatusHere, boolean filterGenreHere) {
+        SourceState(DataSource source, boolean filterStatusHere, List<String> nativeStatuses,
+                    boolean filterGenreHere, boolean filterChaptersHere) {
             this.source = source;
             this.filterStatusHere = filterStatusHere;
+            this.nativeStatuses = nativeStatuses;
             this.filterGenreHere = filterGenreHere;
+            this.filterChaptersHere = filterChaptersHere;
         }
     }
 
@@ -101,15 +128,6 @@ public class SearchViewModel extends ViewModel {
         }
     }
 
-    // Which sources can use which filter, for the filter dialog's hint.
-    public static final class FilterSupportSummary {
-        // Sources that can filter every status.
-        public final List<String> status = new ArrayList<>();
-        // Sources that can only tell some statuses apart.
-        public final List<String> statusPartial = new ArrayList<>();
-        public final List<String> genre = new ArrayList<>();
-    }
-
     private static List<DataSource> enabledSources() {
         List<DataSource> sources = new ArrayList<>();
         for (Integer id : SourceManager.getSources().keySet()) {
@@ -122,23 +140,6 @@ public class SearchViewModel extends ViewModel {
 
     private static SearchFilterSupport supportOf(Source source) {
         return source instanceof SearchFilterSupport ? (SearchFilterSupport) source : null;
-    }
-
-    private boolean canHonorFilters(Source source) {
-        SearchFilterSupport support = supportOf(source);
-        if (!status.isEmpty() && (support == null || !support.supportsStatus(status))) return false;
-        return genre.isEmpty()
-                || (support != null && (support.supportsGenreFilter() || support.reportsGenresInResults()));
-    }
-
-    private boolean filterGenreHere(Source source) {
-        SearchFilterSupport support = supportOf(source);
-        return !genre.isEmpty() && support != null && !support.supportsGenreFilter() && support.reportsGenresInResults();
-    }
-
-    private boolean filterStatusHere(Source source) {
-        SearchFilterSupport support = supportOf(source);
-        return !status.isEmpty() && support != null && !support.filtersStatusItself() && support.reportsStatusInResults();
     }
 
     // for the screen
@@ -161,16 +162,40 @@ public class SearchViewModel extends ViewModel {
         return skippedSources;
     }
 
+    // True once a search has waited the configured time with nothing to show and sources still pending.
+    public LiveData<Boolean> hasTimedOut() {
+        return timedOut;
+    }
+
     public String getKeyword() {
         return filter.getKeyword();
     }
 
-    public String getStatus() {
-        return status;
+    // The statuses chosen; empty means any.
+    public Set<String> getStatuses() {
+        return new LinkedHashSet<>(statuses);
+    }
+
+    // The chapter ranges chosen (their ids); empty means all.
+    public Set<String> getChapterRanges() {
+        return new LinkedHashSet<>(chapterRanges);
     }
 
     public String getGenre() {
         return genre;
+    }
+
+    // Whether an option section is opened out. It is whenever something is chosen in it.
+    public boolean isPickerOpen(String name) {
+        if (PICKER_SOURCES.equals(name) && !selectedSources.isEmpty()) return true;
+        if (PICKER_CHAPTERS.equals(name) && !chapterRanges.isEmpty()) return true;
+        if (PICKER_STATUS.equals(name) && !statuses.isEmpty()) return true;
+        return openPickers.contains(name);
+    }
+
+    public void setPickerOpen(String name, boolean open) {
+        if (open) openPickers.add(name);
+        else openPickers.remove(name);
     }
 
     // The sources the user can choose between: the enabled ones.
@@ -178,48 +203,52 @@ public class SearchViewModel extends ViewModel {
         return enabledSources();
     }
 
-    // Ids of the sources a search covers right now.
-    public Set<Integer> getSelectedIds() {
-        if (selectedSources != null) return new HashSet<>(selectedSources);
-        Set<Integer> all = new HashSet<>();
-        for (DataSource source : enabledSources()) all.add(source.sourceId);
-        return all;
+    // The sources the person has picked; empty means they haven't narrowed it, so a search covers them all.
+    public Set<Integer> getSourceSelection() {
+        return new LinkedHashSet<>(selectedSources);
     }
 
-    public FilterSupportSummary describeFilterSupport() {
-        FilterSupportSummary summary = new FilterSupportSummary();
+    // Ids of the sources a search covers right now: the picked ones, or every enabled one when none is picked.
+    private Set<Integer> effectiveSourceIds() {
+        Set<Integer> enabled = new LinkedHashSet<>();
+        for (DataSource source : enabledSources()) enabled.add(source.sourceId);
+        Set<Integer> picked = new LinkedHashSet<>(selectedSources);
+        // a picked source may have been switched off in Settings since
+        picked.retainAll(enabled);
+        return picked.isEmpty() ? enabled : picked;
+    }
+
+    // Names of the enabled sources that can filter by genre, for the filter dialog's hint.
+    public List<String> genreSupportingSources() {
+        List<String> names = new ArrayList<>();
         for (DataSource dataSource : enabledSources()) {
             SearchFilterSupport support = supportOf(SourceManager.getSource(dataSource.sourceId));
-            if (support == null) continue;
-            boolean anyStatus = false;
-            boolean everyStatus = true;
-            for (String candidate : SearchFilters.STATUSES) {
-                if (support.supportsStatus(candidate)) anyStatus = true;
-                else everyStatus = false;
+            if (support != null && (support.supportsGenreFilter() || support.reportsGenresInResults())) {
+                names.add(dataSource.name);
             }
-            if (everyStatus) summary.status.add(dataSource.name);
-            else if (anyStatus) summary.statusPartial.add(dataSource.name);
-            if (support.supportsGenreFilter() || support.reportsGenresInResults()) summary.genre.add(dataSource.name);
         }
-        return summary;
+        return names;
     }
 
-    // Applies the source selection and the filters. A change to the filters searches again; a change to
-    // the selection only adds or drops the sources concerned, so the others keep what they loaded.
-    public void setOptions(Set<Integer> selection, String newStatus, String newGenre) {
-        String wantedStatus = newStatus == null ? SearchFilters.ANY : newStatus;
+    // Applies the source selection and the filters. A change to the filters searches again; a change to the
+    // selection only adds or drops the sources concerned, so the others keep what they loaded. An empty set
+    // means "all" for the sources, statuses and chapter ranges.
+    public void setOptions(Set<Integer> selection, Set<String> newStatuses, Set<String> newRanges, String newGenre) {
+        Set<String> wantedStatuses = new LinkedHashSet<>(SearchFilters.orderedStatuses(newStatuses));
+        Set<String> wantedRanges = new LinkedHashSet<>(ChapterRanges.orderedIds(newRanges));
         String wantedGenre = newGenre == null ? SearchFilters.ANY : newGenre;
 
-        Set<Integer> enabled = new HashSet<>();
-        for (DataSource source : enabledSources()) enabled.add(source.sourceId);
-        // choosing every enabled source is the same as no choice, so sources enabled later are included
-        Set<Integer> normalized = selection == null || selection.containsAll(enabled) ? null : new HashSet<>(selection);
-
-        boolean filtersChanged = !wantedStatus.equals(status) || !wantedGenre.equals(genre);
-        boolean selectionChanged = !Objects.equals(normalized, selectedSources);
-        status = wantedStatus;
+        Set<Integer> coveredBefore = effectiveSourceIds();
+        boolean filtersChanged = !wantedStatuses.equals(statuses) || !wantedRanges.equals(chapterRanges)
+                || !wantedGenre.equals(genre);
+        statuses.clear();
+        statuses.addAll(wantedStatuses);
+        chapterRanges.clear();
+        chapterRanges.addAll(wantedRanges);
         genre = wantedGenre;
-        selectedSources = normalized;
+        selectedSources.clear();
+        if (selection != null) selectedSources.addAll(selection);
+        boolean selectionChanged = !coveredBefore.equals(effectiveSourceIds());
 
         String keyword = filter.getKeyword();
         if (keyword == null) return; // nothing searched yet; the options apply to the next search
@@ -238,12 +267,43 @@ public class SearchViewModel extends ViewModel {
         restart(keyword.trim());
     }
 
+    // Forgets the current search, as when the search field is emptied: no rows, no notes, no wait. Answers
+    // that are still on their way are dropped, because the generation moves on. The chosen sources and
+    // filters stay; they apply to the next search.
+    public void clear() {
+        if (filter.getKeyword() == null && states.isEmpty() && libraryResults.isEmpty()) return;
+        generation++;
+        filter = new Filter();
+        states.clear();
+        arrival.clear();
+        libraryResults = Collections.emptyList();
+        cancelTimeout();
+        skippedSources.setValue(Collections.emptyList());
+        rows.setValue(Collections.emptyList());
+        failedSources.setValue(Collections.emptyList());
+        loading.setValue(false);
+    }
+
+    // What identifies a search: the same keyword with the same filters is the same search, so coming back to
+    // the screen keeps its results. It is never sent to a source; each request builds its own (see requestFilter).
     private Filter buildFilter(String keyword) {
         Filter next = new Filter();
         next.addFilter(Filter.FILTER_KEYWORD, keyword);
-        if (!status.isEmpty()) next.addFilter(Filter.FILTER_STATUS, status);
+        if (!statuses.isEmpty()) next.addFilter(Filter.FILTER_STATUS, TextUtils.join(",", SearchFilters.orderedStatuses(statuses)));
         if (!genre.isEmpty()) next.addFilter(Filter.FILTER_GENRE, genre);
+        if (!chapterRanges.isEmpty()) next.addFilter("chapters", TextUtils.join(",", ChapterRanges.orderedIds(chapterRanges)));
         return next;
+    }
+
+    // What a source is asked: the keyword, the genre, and at most one status. Statuses it
+    // filters itself, when there are several, go out as separate requests (see requestPage); the ones it
+    // only reports are applied to what comes back.
+    private Filter requestFilter(SourceState state, String status) {
+        Filter request = new Filter();
+        request.addFilter(Filter.FILTER_KEYWORD, filter.getKeyword());
+        if (!genre.isEmpty()) request.addFilter(Filter.FILTER_GENRE, genre);
+        if (status != null && !status.isEmpty()) request.addFilter(Filter.FILTER_STATUS, status);
+        return request;
     }
 
     private void restart(String keyword) {
@@ -252,26 +312,31 @@ public class SearchViewModel extends ViewModel {
         states.clear();
         arrival.clear();
         libraryResults = Collections.emptyList();
+        cancelTimeout();
 
         List<String> skipped = new ArrayList<>();
         for (SourceState state : stateForSelectedSources(skipped)) states.put(state.source.sourceId, state);
         skippedSources.setValue(skipped);
-        // the library has no status or genre to filter by, so it only answers an unfiltered search
-        if (status.isEmpty() && genre.isEmpty()) searchLibrary(keyword, current);
+        // the library has no status, genre or chapter range to filter by, so it only answers an unfiltered search
+        if (statuses.isEmpty() && genre.isEmpty() && chapterRanges.isEmpty()) searchLibrary(keyword, current);
         for (SourceState state : states.values()) requestPage(state, 1, current);
         publish();
     }
 
     private List<SourceState> stateForSelectedSources(List<String> skippedNames) {
         List<SourceState> list = new ArrayList<>();
+        Set<Integer> covered = effectiveSourceIds();
         for (DataSource dataSource : enabledSources()) {
-            if (selectedSources != null && !selectedSources.contains(dataSource.sourceId)) continue;
-            Source source = SourceManager.getSource(dataSource.sourceId);
-            if (!canHonorFilters(source)) {
+            if (!covered.contains(dataSource.sourceId)) continue;
+            // a source that can't apply every filter that is set is skipped (and named in the screen's note)
+            SearchPlan plan = SearchPlan.forSource(supportOf(SourceManager.getSource(dataSource.sourceId)),
+                    statuses, genre, chapterRanges);
+            if (!plan.honored) {
                 skippedNames.add(dataSource.name);
                 continue;
             }
-            list.add(new SourceState(dataSource, filterStatusHere(source), filterGenreHere(source)));
+            list.add(new SourceState(dataSource, plan.filterStatusHere, plan.nativeStatuses,
+                    plan.filterGenreHere, plan.filterChaptersHere));
         }
         return list;
     }
@@ -287,11 +352,15 @@ public class SearchViewModel extends ViewModel {
             if (!wantedIds.contains(it.next())) it.remove();
         }
         arrival.retainAll(wantedIds);
+        boolean added = false;
         for (SourceState state : wanted) {
             if (states.containsKey(state.source.sourceId)) continue;
             states.put(state.source.sourceId, state);
             requestPage(state, 1, generation);
+            added = true;
         }
+        // new sources get their own full wait before "No Results Found"
+        if (added) cancelTimeout();
         skippedSources.setValue(skipped);
         publish();
     }
@@ -315,7 +384,7 @@ public class SearchViewModel extends ViewModel {
     private void requestPage(SourceState state, int page, int searchGeneration) {
         state.pending = true;
         state.failed = false;
-        new Repository(state.source.sourceId).search(filter, page, new Repository.Callback<List<Novel>>() {
+        Repository.Callback<List<Novel>> callback = new Repository.Callback<List<Novel>>() {
             @Override
             public void onComplete(List<Novel> result) {
                 main.post(() -> onPage(searchGeneration, state, page, result));
@@ -326,7 +395,15 @@ public class SearchViewModel extends ViewModel {
                 // one broken source shouldn't hide the others' results
                 main.post(() -> onPageFailed(searchGeneration, state));
             }
-        });
+        };
+        Repository repository = new Repository(state.source.sourceId);
+        if (state.nativeStatuses.size() > 1) {
+            // the source filters one status per request, and several are wanted: ask once for each
+            repository.searchByStatuses(requestFilter(state, null), state.nativeStatuses, page, callback);
+        } else {
+            String status = state.nativeStatuses.isEmpty() ? null : state.nativeStatuses.get(0);
+            repository.search(requestFilter(state, status), page, callback);
+        }
     }
 
     private void onPage(int searchGeneration, SourceState state, int page, List<Novel> result) {
@@ -341,8 +418,9 @@ public class SearchViewModel extends ViewModel {
         }
 
         List<Novel> shown = pageItems;
-        if (state.filterStatusHere) shown = SearchFilters.filterByStatus(status, shown);
+        if (state.filterStatusHere) shown = SearchFilters.filterByStatuses(statuses, shown);
         if (state.filterGenreHere) shown = SearchFilters.filterByGenre(genre, shown);
+        if (state.filterChaptersHere) shown = ChapterRanges.filter(chapterRanges, shown);
 
         int added = 0;
         // best title matches first within the page; earlier pages stay where they are
@@ -426,5 +504,37 @@ public class SearchViewModel extends ViewModel {
         rows.setValue(list);
         failedSources.setValue(failed);
         loading.setValue(firstPagePending);
+
+        // Waiting with nothing to show starts the clock for "No Results Found". Anything to show, or nothing
+        // left to wait for (the screen then says so itself), stops it.
+        if (!list.isEmpty() || !firstPagePending) cancelTimeout();
+        else if (!timeoutArmed) armTimeout();
+    }
+
+    private void armTimeout() {
+        timeoutArmed = true;
+        int seconds = SearchPreferences.getTimeoutSeconds(App.getContext());
+        main.postDelayed(timeoutTask, SearchTimeouts.millis(seconds));
+    }
+
+    private void cancelTimeout() {
+        main.removeCallbacks(timeoutTask);
+        timeoutArmed = false;
+        if (Boolean.TRUE.equals(timedOut.getValue())) timedOut.setValue(false);
+    }
+
+    // The wait is over. If there is still nothing to show, say so; the sources stay pending and a result that
+    // arrives later still appears (and clears the message).
+    private void onTimeout() {
+        timeoutArmed = false;
+        List<Row> current = rows.getValue();
+        if ((current == null || current.isEmpty()) && Boolean.TRUE.equals(loading.getValue())) {
+            timedOut.setValue(true);
+        }
+    }
+
+    @Override
+    protected void onCleared() {
+        main.removeCallbacks(timeoutTask);
     }
 }

@@ -1,8 +1,6 @@
 package org.ranobe.ranobe.ui.search;
 
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
@@ -38,11 +36,13 @@ import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.ui.browse.adapter.NovelAdapter;
 import org.ranobe.ranobe.ui.search.viewmodel.SearchViewModel;
 import org.ranobe.ranobe.ui.views.SpacingDecorator;
+import org.ranobe.ranobe.util.ChapterRanges;
 import org.ranobe.ranobe.util.SearchFilters;
 import org.ranobe.ranobe.util.SearchHistory;
 import org.ranobe.ranobe.util.SearchPreferences;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -51,19 +51,16 @@ public class Search extends Fragment implements NovelAdapter.OnNovelItemClickLis
     // ask for the next page while this many covers are still to the right of the screen
     private static final int PREFETCH_ITEMS = 4;
     private static final int NO_SOURCE = Integer.MIN_VALUE;
-    // search while typing: wait for a pause, and not for one or two letters, so slow typing does not
-    // send a request to every source on each key
+    // search while typing: starts as soon as this many letters are typed, and not for one or two
     private static final int LIVE_MIN_CHARS = 3;
-    private static final long LIVE_DELAY_MS = 900L;
 
     private final List<SearchViewModel.Row> rows = new ArrayList<>();
     private FragmentSearchBinding binding;
     private SearchViewModel viewModel;
     private SearchResultAdapter resultAdapter;
-    private final Handler debounce = new Handler(Looper.getMainLooper());
-    private final Runnable liveSearch = this::runLiveSearch;
-    private Chip allSourcesChip;
-    private boolean updatingSourceChips;
+    private OptionSection sourcesSection;
+    private OptionSection chaptersSection;
+    private OptionSection statusSection;
 
     public Search() {
         // Required empty public constructor
@@ -107,21 +104,19 @@ public class Search extends Fragment implements NovelAdapter.OnNovelItemClickLis
             @Override
             public void afterTextChanged(Editable s) {
                 updateRecentVisibility();
-                debounce.removeCallbacks(liveSearch);
-                if (binding.liveChip.isChecked() && s != null && s.toString().trim().length() >= LIVE_MIN_CHARS) {
-                    debounce.postDelayed(liveSearch, LIVE_DELAY_MS);
+                String typed = s == null ? "" : s.toString().trim();
+                if (typed.isEmpty()) {
+                    // the field was emptied: the results of the old search go too
+                    viewModel.clear();
+                } else if (typed.length() >= LIVE_MIN_CHARS && SearchPreferences.isLiveSearch(requireContext())) {
+                    viewModel.search(s.toString());
                 }
             }
         });
         binding.failedRetry.setOnClickListener(v -> viewModel.retryFailed());
 
-        binding.liveChip.setChecked(SearchPreferences.isLiveSearch(requireContext()));
-        binding.liveChip.setOnCheckedChangeListener((chip, checked) -> {
-            SearchPreferences.setLiveSearch(requireContext(), checked);
-            if (!checked) debounce.removeCallbacks(liveSearch);
-        });
         binding.filtersChip.setOnClickListener(v -> showFiltersDialog());
-        buildSourceChips();
+        setUpOptionSections();
         updateFiltersChipLabel();
 
         binding.resultList.setLayoutManager(new LinearLayoutManager(requireContext()));
@@ -134,16 +129,10 @@ public class Search extends Fragment implements NovelAdapter.OnNovelItemClickLis
         viewModel.getFailedSources().observe(getViewLifecycleOwner(), this::setFailedSources);
         viewModel.getSkippedSources().observe(getViewLifecycleOwner(), this::setSkippedSources);
         viewModel.isLoading().observe(getViewLifecycleOwner(), loading -> updateState());
-    }
-
-    private void runLiveSearch() {
-        if (binding == null) return;
-        CharSequence text = binding.searchField.getText();
-        if (text != null && text.toString().trim().length() >= LIVE_MIN_CHARS) viewModel.search(text.toString());
+        viewModel.hasTimedOut().observe(getViewLifecycleOwner(), timedOut -> updateState());
     }
 
     private void searchNovels() {
-        debounce.removeCallbacks(liveSearch);
         CharSequence text = binding.searchField.getText();
         if (text == null || text.toString().trim().isEmpty()) return;
         binding.searchField.clearFocus();
@@ -153,77 +142,69 @@ public class Search extends Fragment implements NovelAdapter.OnNovelItemClickLis
         viewModel.search(text.toString());
     }
 
-    // source chips
+    // option chips: sources, chapters, status
 
-    // One chip per enabled source, all checked unless the user narrowed the search earlier.
-    private void buildSourceChips() {
-        binding.sourceChips.removeAllViews();
-        Set<Integer> selected = viewModel.getSelectedIds();
-        updatingSourceChips = true;
+    // Each of the three chips starts on ("all" / "any") and opens out its choices when it is switched off.
+    // What is chosen lives in the view model, so it is still there after a visit to a novel's page.
+    private void setUpOptionSections() {
+        // the saved view state is by id; the view model holds the truth, and it is shown below
+        binding.sourceOptions.setSaveFromParentEnabled(false);
+        binding.chapterOptions.setSaveFromParentEnabled(false);
+        binding.statusOptions.setSaveFromParentEnabled(false);
 
-        allSourcesChip = newSourceChip(getString(R.string.search_all_sources));
-        allSourcesChip.setOnClickListener(v -> {
-            // switch every source on without each chip applying the selection on its own
-            updatingSourceChips = true;
-            for (int i = 1; i < binding.sourceChips.getChildCount(); i++) {
-                ((Chip) binding.sourceChips.getChildAt(i)).setChecked(true);
-            }
-            refreshAllSourcesChip();
-            updatingSourceChips = false;
-            applySelection();
-        });
-        binding.sourceChips.addView(allSourcesChip);
+        sourcesSection = new OptionSection(binding.sourcesChip, binding.sourceOptions,
+                sectionListener(SearchViewModel.PICKER_SOURCES));
+        chaptersSection = new OptionSection(binding.chaptersChip, binding.chapterOptions,
+                sectionListener(SearchViewModel.PICKER_CHAPTERS));
+        statusSection = new OptionSection(binding.statusChip, binding.statusOptions,
+                sectionListener(SearchViewModel.PICKER_STATUS));
 
+        List<String> ids = new ArrayList<>();
+        List<String> labels = new ArrayList<>();
         for (DataSource source : viewModel.availableSources()) {
-            Chip chip = newSourceChip(source.name);
-            chip.setTag(source.sourceId);
-            chip.setChecked(selected.contains(source.sourceId));
-            chip.setOnCheckedChangeListener((button, checked) -> {
-                if (!updatingSourceChips) onSourceToggled((Chip) button);
-            });
-            binding.sourceChips.addView(chip);
+            ids.add(String.valueOf(source.sourceId));
+            labels.add(source.name);
         }
-        refreshAllSourcesChip();
-        updatingSourceChips = false;
-    }
+        sourcesSection.setOptions(getLayoutInflater(), ids, labels);
 
-    private Chip newSourceChip(String label) {
-        Chip chip = (Chip) getLayoutInflater().inflate(R.layout.item_source_chip, binding.sourceChips, false);
-        chip.setText(label);
-        return chip;
-    }
+        ids = new ArrayList<>();
+        for (ChapterRanges.Range range : ChapterRanges.ALL) ids.add(range.id);
+        chaptersSection.setOptions(getLayoutInflater(), ids, ids);
 
-    private void onSourceToggled(Chip chip) {
-        if (checkedSourceIds().isEmpty()) {
-            // a search needs at least one source, so the last one cannot be switched off
-            updatingSourceChips = true;
-            chip.setChecked(true);
-            updatingSourceChips = false;
-            return;
+        ids = new ArrayList<>();
+        labels = new ArrayList<>();
+        for (String status : SearchFilters.STATUSES) {
+            ids.add(status);
+            labels.add(statusLabel(status));
         }
-        refreshAllSourcesChip();
-        applySelection();
+        statusSection.setOptions(getLayoutInflater(), ids, labels);
+
+        Set<String> pickedSources = new LinkedHashSet<>();
+        for (Integer id : viewModel.getSourceSelection()) pickedSources.add(String.valueOf(id));
+        sourcesSection.show(pickedSources, viewModel.isPickerOpen(SearchViewModel.PICKER_SOURCES));
+        chaptersSection.show(viewModel.getChapterRanges(), viewModel.isPickerOpen(SearchViewModel.PICKER_CHAPTERS));
+        statusSection.show(viewModel.getStatuses(), viewModel.isPickerOpen(SearchViewModel.PICKER_STATUS));
     }
 
-    private Set<Integer> checkedSourceIds() {
-        Set<Integer> ids = new java.util.HashSet<>();
-        for (int i = 1; i < binding.sourceChips.getChildCount(); i++) {
-            Chip chip = (Chip) binding.sourceChips.getChildAt(i);
-            if (chip.isChecked() && chip.getTag() instanceof Integer) ids.add((Integer) chip.getTag());
-        }
-        return ids;
+    private OptionSection.Listener sectionListener(String picker) {
+        return new OptionSection.Listener() {
+            @Override
+            public void onSelectionChanged(Set<String> selected) {
+                applyOptions();
+            }
+
+            @Override
+            public void onOpenChanged(boolean open) {
+                viewModel.setPickerOpen(picker, open);
+            }
+        };
     }
 
-    private void refreshAllSourcesChip() {
-        boolean every = binding.sourceChips.getChildCount() > 1;
-        for (int i = 1; i < binding.sourceChips.getChildCount(); i++) {
-            if (!((Chip) binding.sourceChips.getChildAt(i)).isChecked()) every = false;
-        }
-        allSourcesChip.setChecked(every);
-    }
-
-    private void applySelection() {
-        viewModel.setOptions(checkedSourceIds(), viewModel.getStatus(), viewModel.getGenre());
+    // Hands what the three sections hold, and the genre, to the view model.
+    private void applyOptions() {
+        Set<Integer> sources = new LinkedHashSet<>();
+        for (String id : sourcesSection.selected()) sources.add(Integer.parseInt(id));
+        viewModel.setOptions(sources, statusSection.selected(), chaptersSection.selected(), viewModel.getGenre());
     }
 
     // filters
@@ -231,19 +212,7 @@ public class Search extends Fragment implements NovelAdapter.OnNovelItemClickLis
     private void showFiltersDialog() {
         DialogSearchFiltersBinding dialog = DialogSearchFiltersBinding.inflate(getLayoutInflater());
 
-        List<String> statusOptions = new ArrayList<>();
-        statusOptions.add(SearchFilters.ANY);
-        statusOptions.addAll(SearchFilters.STATUSES);
-        int checkedId = View.NO_ID;
-        for (String option : statusOptions) {
-            Chip chip = (Chip) getLayoutInflater().inflate(R.layout.item_source_chip, dialog.statusGroup, false);
-            chip.setId(View.generateViewId());
-            chip.setText(option.isEmpty() ? getString(R.string.search_any) : statusLabel(option));
-            chip.setTag(option);
-            dialog.statusGroup.addView(chip);
-            if (option.equals(viewModel.getStatus())) checkedId = chip.getId();
-        }
-        dialog.statusGroup.check(checkedId);
+        dialog.liveSwitch.setChecked(SearchPreferences.isLiveSearch(requireContext()));
 
         List<String> genres = new ArrayList<>();
         genres.add(getString(R.string.search_any_genre));
@@ -252,27 +221,27 @@ public class Search extends Fragment implements NovelAdapter.OnNovelItemClickLis
         String currentGenre = viewModel.getGenre();
         dialog.genreInput.setText(currentGenre.isEmpty() ? genres.get(0) : currentGenre, false);
 
-        SearchViewModel.FilterSupportSummary support = viewModel.describeFilterSupport();
-        dialog.filterNote.setText(getString(R.string.search_filter_support,
-                joinOrNone(support.status), joinOrNone(support.statusPartial), joinOrNone(support.genre)));
+        dialog.filterNote.setText(getString(R.string.search_genre_support, joinOrNone(viewModel.genreSupportingSources())));
 
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle(R.string.search_filters)
                 .setView(dialog.getRoot())
                 .setPositiveButton(R.string.search_apply, (d, which) -> {
-                    Chip checked = dialog.statusGroup.findViewById(dialog.statusGroup.getCheckedChipId());
-                    String newStatus = checked == null ? SearchFilters.ANY : (String) checked.getTag();
+                    boolean live = dialog.liveSwitch.isChecked();
+                    SearchPreferences.setLiveSearch(requireContext(), live);
                     String picked = String.valueOf(dialog.genreInput.getText());
                     String newGenre = picked.equals(genres.get(0)) ? SearchFilters.ANY : picked;
-                    viewModel.setOptions(viewModel.getSelectedIds(), newStatus, newGenre);
-                    updateFiltersChipLabel();
+                    setGenre(newGenre);
                 })
-                .setNeutralButton(R.string.search_reset, (d, which) -> {
-                    viewModel.setOptions(viewModel.getSelectedIds(), SearchFilters.ANY, SearchFilters.ANY);
-                    updateFiltersChipLabel();
-                })
+                // clears the genre; "search as you type" is a setting, not a filter, so it stays as it is
+                .setNeutralButton(R.string.search_reset, (d, which) -> setGenre(SearchFilters.ANY))
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
+    }
+
+    private void setGenre(String genre) {
+        viewModel.setOptions(viewModel.getSourceSelection(), viewModel.getStatuses(), viewModel.getChapterRanges(), genre);
+        updateFiltersChipLabel();
     }
 
     private String joinOrNone(List<String> names) {
@@ -296,12 +265,10 @@ public class Search extends Fragment implements NovelAdapter.OnNovelItemClickLis
 
     private void updateFiltersChipLabel() {
         if (binding == null) return;
-        List<String> parts = new ArrayList<>();
-        if (!viewModel.getStatus().isEmpty()) parts.add(statusLabel(viewModel.getStatus()));
-        if (!viewModel.getGenre().isEmpty()) parts.add(viewModel.getGenre());
-        binding.filtersChip.setText(parts.isEmpty()
+        String genre = viewModel.getGenre();
+        binding.filtersChip.setText(genre.isEmpty()
                 ? getString(R.string.search_filters)
-                : getString(R.string.search_filters_active, TextUtils.join(", ", parts)));
+                : getString(R.string.search_filters_chip_genre, genre));
     }
 
     private void setSkippedSources(List<String> names) {
@@ -387,10 +354,15 @@ public class Search extends Fragment implements NovelAdapter.OnNovelItemClickLis
     private void updateState() {
         if (binding == null) return;
         boolean loading = Boolean.TRUE.equals(viewModel.isLoading().getValue());
+        // the wait set in Settings ran out with nothing found, though some sources haven't answered yet
+        boolean timedOut = Boolean.TRUE.equals(viewModel.hasTimedOut().getValue());
         boolean searched = viewModel.getKeyword() != null;
-        if (loading) binding.progress.show();
+        if (loading && !timedOut) binding.progress.show();
         else binding.progress.hide();
-        binding.empty.setVisibility(!loading && searched && rows.isEmpty() ? View.VISIBLE : View.GONE);
+        boolean noResults = searched && rows.isEmpty() && (!loading || timedOut);
+        binding.empty.setVisibility(noResults ? View.VISIBLE : View.GONE);
+        // still waiting on some sources: a late answer will still show up
+        binding.emptySlow.setVisibility(noResults && loading ? View.VISIBLE : View.GONE);
     }
 
     @Override
@@ -405,7 +377,6 @@ public class Search extends Fragment implements NovelAdapter.OnNovelItemClickLis
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        debounce.removeCallbacks(liveSearch);
         binding = null;
     }
 

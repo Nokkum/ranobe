@@ -439,6 +439,11 @@ public class WtrLab implements Source, SearchFilterSupport {
     }
 
     @Override
+    public boolean reportsChapterCountInResults() {
+        return true;
+    }
+
+    @Override
     public List<Novel> search(Filter filters, int page) throws Exception {
         // The public quick-search endpoint returns a bounded result list and has no page parameter.
         if (page > 1 || !filters.hashKeyword()) return new ArrayList<>();
@@ -499,6 +504,7 @@ public class WtrLab implements Source, SearchFilterSupport {
                 "chapter_count",
                 record.optInt("raw_chapter_count", 0)
         );
+        novel.searchChapterCount = novel.lastKnownChapterCount;
         Object rating = record.opt("rating");
         if (rating instanceof Number) novel.rating = ((Number) rating).floatValue();
 

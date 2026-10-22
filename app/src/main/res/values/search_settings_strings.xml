@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_search">Search</string>
+    <string name="settings_search_timeout">Search timeout</string>
+    <string name="settings_search_timeout_sub">How long Search waits, with nothing found, before it shows \u201cNo Results Found\u201d</string>
+    <string name="search_timeout_seconds">%1$d s</string>
+</resources>

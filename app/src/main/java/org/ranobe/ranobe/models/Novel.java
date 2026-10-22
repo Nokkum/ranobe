@@ -40,6 +40,11 @@ public class Novel implements Parcelable {
     public float rating;
     public int year;
     public int lastKnownChapterCount;
+    // How many chapters a source's search results say this novel has; 0 when they don't say. Only the Chapter
+    // Range filter reads it, so it isn't saved or passed on. (lastKnownChapterCount is the library's baseline
+    // for "new chapters" and must stay an exact count, which a search result's figure often isn't.)
+    @Ignore
+    public int searchChapterCount;
 
     public Novel(String url) {
         this.id = SourceUtils.generateId(url);

@@ -10,6 +10,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.TextView;
 import android.view.ViewGroup;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -34,6 +35,8 @@ import org.ranobe.ranobe.sources.en.WtrLab;
 import org.ranobe.ranobe.ui.settings.viewmodel.SettingsViewModel;
 import org.ranobe.ranobe.ui.views.GetPro;
 import org.ranobe.ranobe.util.BackupManager;
+import org.ranobe.ranobe.util.SearchPreferences;
+import org.ranobe.ranobe.util.SearchTimeouts;
 import org.ranobe.ranobe.worker.ChapterUpdateScheduler;
 
 import java.text.SimpleDateFormat;
@@ -129,6 +132,7 @@ public class Settings extends Fragment {
             binding.scrollSpeedSetting.speedLabel.setText(Ranobe.getSpeedLabel(requireContext(), speed));
         });
 
+        setUpSearchTimeout();
         setUpBackup();
 
         binding.projectLink.setOnClickListener(v -> openLink(Ranobe.RANOBE_GITHUB_LINK));
@@ -154,6 +158,27 @@ public class Settings extends Fragment {
         binding.scrollSpeedSetting.speedSlider.setValue(speed);
         binding.scrollSpeedSetting.speedLabel.setText(Ranobe.getSpeedLabel(requireContext(), speed));
         refreshWtrLabStatus();
+    }
+
+    // How long Search waits, with nothing found, before it shows "No Results Found": one of four values.
+    private void setUpSearchTimeout() {
+        // the row only labels the buttons under it
+        binding.searchTimeoutOption.setClickable(false);
+
+        // the buttons are the values in SearchTimeouts.OPTIONS, in order
+        for (int i = 0; i < SearchTimeouts.OPTIONS.length; i++) {
+            View button = binding.searchTimeoutToggle.getChildAt(i);
+            ((TextView) button).setText(getString(R.string.search_timeout_seconds, SearchTimeouts.OPTIONS[i]));
+        }
+        int current = SearchPreferences.getTimeoutSeconds(requireContext());
+        binding.searchTimeoutToggle.check(binding.searchTimeoutToggle.getChildAt(SearchTimeouts.indexOf(current)).getId());
+        binding.searchTimeoutToggle.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
+            if (!isChecked) return;
+            int index = group.indexOfChild(group.findViewById(checkedId));
+            if (index >= 0 && index < SearchTimeouts.OPTIONS.length) {
+                SearchPreferences.setTimeoutSeconds(requireContext(), SearchTimeouts.OPTIONS[index]);
+            }
+        });
     }
 
     private interface OnFilePicked {

@@ -310,6 +310,72 @@
 
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Search -->
+        <TextView
+            style="@style/SectionTitle"
+            android:text="@string/settings_search" />
+
+        <com.google.android.material.card.MaterialCardView
+            style="@style/SectionCard">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!-- the row only labels the buttons below it -->
+                <org.ranobe.ranobe.ui.views.SettingOptionView
+                    android:id="@+id/search_timeout_option"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:settingIcon="@drawable/ic_search"
+                    app:settingSubtitle="@string/settings_search_timeout_sub"
+                    app:settingTitle="@string/settings_search_timeout" />
+
+                <!-- one button per value in SearchTimeouts.OPTIONS, in that order; their text is set in code -->
+                <com.google.android.material.button.MaterialButtonToggleGroup
+                    android:id="@+id/search_timeout_toggle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginBottom="16dp"
+                    app:selectionRequired="true"
+                    app:singleSelection="true">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/search_timeout_first"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/search_timeout_second"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/search_timeout_third"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/search_timeout_fourth"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1" />
+
+                </com.google.android.material.button.MaterialButtonToggleGroup>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
         <!-- Backup -->
         <TextView
             style="@style/SectionTitle"

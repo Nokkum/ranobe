@@ -15,6 +15,7 @@ import org.ranobe.ranobe.sources.AuthorSearch;
 import org.ranobe.ranobe.sources.SearchFilterSupport;
 import org.ranobe.ranobe.sources.Source;
 import org.ranobe.ranobe.util.AuthorNames;
+import org.ranobe.ranobe.util.ChapterCounts;
 import org.ranobe.ranobe.util.NumberUtils;
 import org.ranobe.ranobe.util.SearchFilters;
 import org.ranobe.ranobe.util.SourceUtils;
@@ -65,11 +66,21 @@ public class RoyalRoad implements Source, SearchFilterSupport, AuthorSearch {
                 item.sourceId = sourceId;
                 item.name = element.select("h2.fiction-title > a").text().trim();
                 item.cover = element.select("img[data-type=\"cover\"]").attr("src");
+                item.searchChapterCount = chapterCountFrom(element);
                 items.add(item);
             }
         }
 
         return items;
+    }
+
+    // The card's stats list "109 Chapters" among followers, pages and views; 0 when it isn't there.
+    private static int chapterCountFrom(Element card) {
+        for (Element stat : card.select(".stats span")) {
+            int count = ChapterCounts.fromLabel(stat.text());
+            if (count > 0) return count;
+        }
+        return 0;
     }
 
     @Override
@@ -181,6 +192,11 @@ public class RoyalRoad implements Source, SearchFilterSupport, AuthorSearch {
         String web = SourceUtils.buildUrl(baseUrl, "/fictions/search?author=", AuthorNames.encode(author),
                 "&page=", String.valueOf(page));
         return parse(HttpClient.GET(web, new HashMap<>()), true);
+    }
+
+    @Override
+    public boolean reportsChapterCountInResults() {
+        return true;
     }
 
     @Override

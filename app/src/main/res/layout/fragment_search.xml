@@ -56,123 +56,179 @@
 
     </LinearLayout>
 
-    <HorizontalScrollView
-        android:id="@+id/options_scroll"
+    <!-- everything below the search bar scrolls, so opened-out options never squeeze the results -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scroll"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="5dp"
-        android:layout_marginTop="4dp"
-        android:scrollbars="none">
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingBottom="100dp">
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:orientation="vertical">
 
-            <com.google.android.material.chip.Chip
-                android:id="@+id/filters_chip"
-                style="@style/Widget.Material3.Chip.Assist"
-                android:layout_width="wrap_content"
+            <HorizontalScrollView
+                android:id="@+id/recent_scroll"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:text="@string/search_filters" />
+                android:layout_marginHorizontal="5dp"
+                android:layout_marginTop="6dp"
+                android:scrollbars="none"
+                android:visibility="gone">
 
-            <com.google.android.material.chip.Chip
-                android:id="@+id/live_chip"
-                style="@style/Widget.Material3.Chip.Filter"
-                android:layout_width="wrap_content"
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/recent_chips"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:singleLine="true" />
+
+            </HorizontalScrollView>
+
+            <!-- One row of chips: Filter opens a dialog (genre, search as you type); the other three are on to
+                 begin with, and switching one off opens out its choices just below the row -->
+            <com.google.android.material.chip.ChipGroup
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:checkable="true"
-                android:text="@string/search_live" />
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="4dp"
+                app:chipSpacingHorizontal="8dp"
+                app:chipSpacingVertical="0dp">
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/filters_chip"
+                    style="@style/Widget.Material3.Chip.Assist"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/search_filters" />
+
+                <!-- their checked state comes from the view model, not from saved view state -->
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/sources_chip"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checkable="true"
+                    android:saveEnabled="false"
+                    android:text="@string/search_all_sources" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chapters_chip"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checkable="true"
+                    android:saveEnabled="false"
+                    android:text="@string/search_all_chapters" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/status_chip"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checkable="true"
+                    android:saveEnabled="false"
+                    android:text="@string/search_any_status" />
+
+            </com.google.android.material.chip.ChipGroup>
+
+            <!-- the choices, in the order of the chips above; each is hidden until its chip is switched off -->
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/source_options"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:visibility="gone"
+                app:chipSpacingVertical="0dp" />
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chapter_options"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:visibility="gone"
+                app:chipSpacingVertical="0dp" />
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/status_options"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:visibility="gone"
+                app:chipSpacingVertical="0dp" />
+
+            <LinearLayout
+                android:id="@+id/failed_banner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="6dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/failed_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="?colorError" />
+
+                <Button
+                    android:id="@+id/failed_retry"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/retry" />
+
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/skipped_note"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="4dp"
+                android:textColor="?colorOnSurfaceVariant"
+                android:textSize="12sp"
+                android:visibility="gone" />
+
+            <!-- no results: nothing found, or nothing came back within the time set in Settings -->
+            <TextView
+                android:id="@+id/empty"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="40dp"
+                android:padding="10dp"
+                android:text="@string/search_no_results"
+                android:textAlignment="center"
+                android:textColor="?colorOnSurfaceVariant"
+                android:textSize="@dimen/text_big"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/empty_slow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="24dp"
+                android:text="@string/search_no_results_slow"
+                android:textAlignment="center"
+                android:textColor="?colorOnSurfaceVariant"
+                android:textSize="12sp"
+                android:visibility="gone" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/result_list"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:nestedScrollingEnabled="false"
+                android:overScrollMode="never" />
 
         </LinearLayout>
-    </HorizontalScrollView>
 
-    <HorizontalScrollView
-        android:id="@+id/source_scroll"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="5dp"
-        android:scrollbars="none">
-
-        <com.google.android.material.chip.ChipGroup
-            android:id="@+id/source_chips"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:singleLine="true" />
-
-    </HorizontalScrollView>
-
-    <HorizontalScrollView
-        android:id="@+id/recent_scroll"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="5dp"
-        android:layout_marginTop="6dp"
-        android:scrollbars="none"
-        android:visibility="gone">
-
-        <com.google.android.material.chip.ChipGroup
-            android:id="@+id/recent_chips"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:singleLine="true" />
-
-    </HorizontalScrollView>
-
-    <LinearLayout
-        android:id="@+id/failed_banner"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="10dp"
-        android:layout_marginTop="6dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:visibility="gone">
-
-        <TextView
-            android:id="@+id/failed_text"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textColor="?colorError" />
-
-        <Button
-            android:id="@+id/failed_retry"
-            style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/retry" />
-
-    </LinearLayout>
-
-    <TextView
-        android:id="@+id/skipped_note"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="10dp"
-        android:layout_marginTop="4dp"
-        android:textColor="?colorOnSurfaceVariant"
-        android:textSize="12sp"
-        android:visibility="gone" />
-
-    <TextView
-        android:id="@+id/empty"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="40dp"
-        android:padding="10dp"
-        android:text="@string/no_results_err"
-        android:textAlignment="center"
-        android:textColor="?colorOnSurfaceVariant"
-        android:textSize="@dimen/text_big"
-        android:visibility="gone" />
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/result_list"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_marginTop="10dp"
-        android:layout_marginBottom="100dp" />
+    </androidx.core.widget.NestedScrollView>
 
 </LinearLayout>

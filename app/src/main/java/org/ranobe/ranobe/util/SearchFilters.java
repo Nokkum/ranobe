@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 // The values the search filters offer, and the rules for matching a novel's status.
 public final class SearchFilters {
@@ -44,6 +45,42 @@ public final class SearchFilters {
         String want = canonicalStatus(wanted);
         if (want.isEmpty()) return true;
         return want.equals(canonicalStatus(actual));
+    }
+
+    // With several statuses chosen, a novel matches when its status is any of them. No status chosen matches
+    // everything; with some chosen, a novel whose status is unknown never matches.
+    public static boolean matchesAnyStatus(Set<String> wanted, String actual) {
+        if (wanted == null || wanted.isEmpty()) return true;
+        String have = canonicalStatus(actual);
+        if (have.isEmpty()) return false;
+        for (String status : wanted) {
+            if (have.equals(canonicalStatus(status))) return true;
+        }
+        return false;
+    }
+
+    public static List<Novel> filterByStatuses(Set<String> wanted, List<Novel> novels) {
+        List<Novel> kept = new ArrayList<>();
+        for (Novel novel : novels) {
+            if (matchesAnyStatus(wanted, novel.status)) kept.add(novel);
+        }
+        return kept;
+    }
+
+    // The chosen statuses as the four standard names, in the order they are listed (not the order they were
+    // picked), so the same choice always gives the same list.
+    public static List<String> orderedStatuses(Set<String> chosen) {
+        List<String> ordered = new ArrayList<>();
+        if (chosen == null) return ordered;
+        for (String status : STATUSES) {
+            for (String pick : chosen) {
+                if (status.equals(canonicalStatus(pick))) {
+                    ordered.add(status);
+                    break;
+                }
+            }
+        }
+        return ordered;
     }
 
     // Lower case letters and digits only, with the spellings of science fiction made one.

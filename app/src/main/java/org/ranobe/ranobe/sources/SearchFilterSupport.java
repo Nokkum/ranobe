@@ -17,6 +17,12 @@ public interface SearchFilterSupport {
         return false;
     }
 
+    // Search results carry Novel.searchChapterCount, so the app can drop the novels outside the chosen chapter
+    // ranges. A source that doesn't is skipped while a range is chosen.
+    default boolean reportsChapterCountInResults() {
+        return false;
+    }
+
     // Whether this particular status can be filtered. Most sources handle all of them or none; a source
     // that can only tell some apart (say, completed from the rest) overrides this.
     default boolean supportsStatus(String status) {

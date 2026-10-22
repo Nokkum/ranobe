@@ -9,7 +9,9 @@ import org.ranobe.ranobe.sources.Source;
 import org.ranobe.ranobe.sources.SourceManager;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -88,6 +90,35 @@ public class Repository {
             } catch (Exception e) {
                 callback.onError(e);
             }
+        });
+    }
+
+    // One page for a source that can only filter by one status at a time, asked about several: a request per
+    // status, the answers joined (a novel listed under two statuses once). The filter carries the keyword and
+    // genre; each request gets one of the statuses. It fails only when every request failed, so one status
+    // that errors doesn't hide what the others found.
+    public void searchByStatuses(Filter filter, List<String> statuses, int page, Callback<List<Novel>> callback) {
+        executor.execute(() -> {
+            List<Novel> merged = new ArrayList<>();
+            Set<String> seen = new HashSet<>();
+            Exception lastError = null;
+            boolean anyAnswered = false;
+            for (String status : statuses) {
+                Filter one = new Filter();
+                one.addFilter(Filter.FILTER_KEYWORD, filter.getKeyword());
+                if (filter.hasGenre()) one.addFilter(Filter.FILTER_GENRE, filter.getGenre());
+                one.addFilter(Filter.FILTER_STATUS, status);
+                try {
+                    for (Novel novel : source.search(one, page)) {
+                        if (novel.url == null || seen.add(novel.url)) merged.add(novel);
+                    }
+                    anyAnswered = true;
+                } catch (Exception e) {
+                    lastError = e;
+                }
+            }
+            if (!anyAnswered && lastError != null) callback.onError(lastError);
+            else callback.onComplete(merged);
         });
     }
 

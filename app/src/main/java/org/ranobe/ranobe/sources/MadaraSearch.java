@@ -3,6 +3,7 @@ package org.ranobe.ranobe.sources;
 import org.jsoup.nodes.Element;
 import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.util.AuthorNames;
+import org.ranobe.ranobe.util.ChapterCounts;
 import org.ranobe.ranobe.util.SearchFilters;
 
 import java.util.ArrayList;
@@ -75,6 +76,14 @@ public final class MadaraSearch {
         return status == null ? "" : status.text().trim();
     }
 
+    // The chapter count a card implies: the number of its latest chapter ("Chapter 1234 [END]"), 0 when it
+    // lists none. A novel's chapter list can differ by a few (a prologue, a side story), so it is only good
+    // enough to sort novels into ranges like 501-1000.
+    public static int chapterCountFrom(Element card) {
+        Element latest = card.selectFirst(".latest-chap .chapter");
+        return latest == null ? 0 : ChapterCounts.fromLabel(latest.text());
+    }
+
     // Copies the card's genres, status and authors onto the novel, so the app can filter results by genre
     // and tell whose novel it is.
     public static void fillFromCard(Novel novel, Element card) {
@@ -83,5 +92,6 @@ public final class MadaraSearch {
         if (!status.isEmpty()) novel.status = status;
         List<String> authors = authorsFrom(card.selectFirst(".mg_author .summary-content"));
         if (!authors.isEmpty()) novel.authors = authors;
+        novel.searchChapterCount = chapterCountFrom(card);
     }
 }
