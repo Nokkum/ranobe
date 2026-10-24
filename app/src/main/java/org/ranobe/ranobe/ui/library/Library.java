@@ -1,6 +1,7 @@
 package org.ranobe.ranobe.ui.library;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -17,6 +18,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 
@@ -29,19 +31,26 @@ import org.ranobe.ranobe.config.Ranobe;
 import org.ranobe.ranobe.config.RanobeSettings;
 import org.ranobe.ranobe.database.RanobeDatabase;
 import org.ranobe.ranobe.databinding.FragmentLibraryBinding;
+import org.ranobe.ranobe.models.Chapter;
 import org.ranobe.ranobe.models.Novel;
+import org.ranobe.ranobe.service.DownloadService;
 import org.ranobe.ranobe.ui.browse.adapter.NovelAdapter;
+import org.ranobe.ranobe.ui.chapters.viewmodel.ChaptersViewModel;
 import org.ranobe.ranobe.ui.views.GetPro;
 import org.ranobe.ranobe.util.DisplayUtils;
+import org.ranobe.ranobe.util.DownloadCleaner;
 import org.ranobe.ranobe.util.ListUtils;
 import org.ranobe.ranobe.util.NumberUtils;
 import org.ranobe.ranobe.worker.ChapterUpdateScheduler;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
-public class Library extends Fragment implements NovelAdapter.OnNovelItemClickListener, NovelAdapter.OnNovelLongClickListener, MaterialToolbar.OnMenuItemClickListener {
+public class Library extends Fragment implements NovelAdapter.OnNovelItemClickListener, NovelAdapter.OnNovelMenuClickListener, NovelOptions.Listener, MaterialToolbar.OnMenuItemClickListener {
     private static final int SORT_DEFAULT = 0;
     private static final int SORT_AZ = 1;
     private static final int SORT_ZA = 2;
@@ -51,6 +60,18 @@ public class Library extends Fragment implements NovelAdapter.OnNovelItemClickLi
     private NovelAdapter adapter;
     private int currentSort = SORT_DEFAULT;
     private ActivityResultLauncher<String> notificationPermissionLauncher;
+    // "Download All" waits here while the notification permission is asked for
+    private Novel pendingDownloadNovel = null;
+    private final ActivityResultLauncher<String> downloadPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
+                Novel novel = pendingDownloadNovel;
+                pendingDownloadNovel = null;
+                if (granted && novel != null) {
+                    queueAllChapters(novel);
+                } else if (binding != null) {
+                    Snackbar.make(binding.getRoot(), R.string.library_download_permission_denied, Snackbar.LENGTH_SHORT).show();
+                }
+            });
 
     public Library() {
         // Required empty public constructor
@@ -272,18 +293,144 @@ public class Library extends Fragment implements NovelAdapter.OnNovelItemClickLi
         controller.navigate(R.id.library_fragment_to_details, bundle);
     }
 
+    // the three dots on a novel
     @Override
-    public void onNovelLongClick(Novel novel) {
+    public void onNovelMenuClick(Novel novel) {
+        NovelOptions.newInstance(novel).show(getChildFragmentManager(), NovelOptions.TAG);
+    }
+
+    // Download All
+
+    @Override
+    public void onDownloadAll(Novel novel) {
         new MaterialAlertDialogBuilder(requireContext())
-                .setMessage("Are you sure you want to remove novel from the library?")
-                .setPositiveButton("Yes", (dialog, i) -> removeFromLib(novel))
-                .setNegativeButton("Cancel", (dialog, i) -> dialog.dismiss())
+                .setTitle(R.string.download_all)
+                .setMessage(R.string.downloading_all_chapters_confirmation)
+                .setPositiveButton(android.R.string.ok, (dialog, i) -> {
+                    if (hasNotifPermission()) {
+                        queueAllChapters(novel);
+                    } else {
+                        pendingDownloadNovel = novel;
+                        downloadPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, (dialog, i) -> dialog.dismiss())
+                .show();
+    }
+
+    private boolean hasNotifPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true;
+        return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    // A novel in the library may never have had its chapter list opened, so the list is fetched first (or read
+    // from the saved copy), then every chapter that is not downloaded yet is queued.
+    private void queueAllChapters(Novel novel) {
+        final Context appContext = requireContext().getApplicationContext();
+        Snackbar.make(binding.getRoot(), R.string.library_getting_chapters, Snackbar.LENGTH_SHORT).show();
+        ChaptersViewModel chaptersViewModel = new ViewModelProvider(requireActivity()).get(ChaptersViewModel.class);
+        new ChapterListRequest(chaptersViewModel, novel, new ChapterListRequest.Callback() {
+            @Override
+            public void onList(List<Chapter> chapters) {
+                enqueueMissing(appContext, novel, chapters);
+            }
+
+            @Override
+            public void onFailed(@Nullable String message) {
+                if (binding == null) return;
+                Snackbar.make(binding.getRoot(),
+                        appContext.getString(R.string.library_download_failed, message == null ? "" : message),
+                        Snackbar.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    private void enqueueMissing(Context appContext, Novel novel, List<Chapter> chapters) {
+        final View root = binding == null ? null : binding.getRoot();
+        RanobeDatabase.databaseExecutor.execute(() -> {
+            Set<String> downloaded = new HashSet<>(RanobeDatabase.database().chapters().getDownloadedUrls(novel.url));
+            List<Chapter> wanted = new ArrayList<>();
+            for (Chapter chapter : chapters) {
+                if (!downloaded.contains(chapter.url)) wanted.add(chapter);
+            }
+            // Oldest first, as in the chapter list: sources such as WTR-LAB unlock the first chapters for
+            // everyone, so those should be fetched before anything that may be locked.
+            Collections.sort(wanted, (a, b) -> Float.compare(a.id, b.id));
+            if (!wanted.isEmpty()) {
+                try {
+                    DownloadService.enqueueAll(appContext, wanted, novel.sourceId);
+                } catch (IllegalStateException e) {
+                    // the app went to the background while the list loaded, so the service may not start now;
+                    // the chapters stay queued and are picked up by the next download that starts it
+                }
+            }
+            final int count = wanted.size();
+            if (root == null) return;
+            root.post(() -> {
+                if (binding == null) return;
+                Snackbar.make(binding.getRoot(), count == 0
+                                ? appContext.getString(R.string.library_nothing_to_download)
+                                : appContext.getString(R.string.library_download_queued, count),
+                        Snackbar.LENGTH_SHORT).show();
+            });
+        });
+    }
+
+    // Delete All Chapters
+
+    @Override
+    public void onDeleteAllChapters(Novel novel) {
+        final View root = binding.getRoot();
+        RanobeDatabase.databaseExecutor.execute(() -> {
+            int count = RanobeDatabase.database().chapters().getDownloadedUrls(novel.url).size();
+            root.post(() -> {
+                if (binding == null) return;
+                if (count == 0) {
+                    Snackbar.make(binding.getRoot(), R.string.library_no_downloads, Snackbar.LENGTH_SHORT).show();
+                } else {
+                    confirmDeleteAllChapters(novel, count);
+                }
+            });
+        });
+    }
+
+    private void confirmDeleteAllChapters(Novel novel, int count) {
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.delete_all_chapters)
+                .setMessage(getString(R.string.delete_downloads_confirmation, count))
+                .setPositiveButton(R.string.delete_downloads_confirm, (dialog, i) -> deleteAllChapters(novel))
+                .setNegativeButton(android.R.string.cancel, (dialog, i) -> dialog.dismiss())
+                .show();
+    }
+
+    private void deleteAllChapters(Novel novel) {
+        final Context appContext = requireContext().getApplicationContext();
+        final View root = binding.getRoot();
+        RanobeDatabase.databaseExecutor.execute(() -> {
+            int removed = DownloadCleaner.deleteNovelDownloads(appContext, novel.url);
+            root.post(() -> {
+                if (binding == null) return;
+                Snackbar.make(binding.getRoot(), appContext.getString(R.string.downloads_deleted, removed), Snackbar.LENGTH_SHORT).show();
+            });
+        });
+    }
+
+    // Remove Bookmark
+
+    @Override
+    public void onRemoveBookmark(Novel novel) {
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.remove_bookmark)
+                .setMessage(R.string.remove_bookmark_confirmation)
+                .setPositiveButton(R.string.remove, (dialog, i) -> removeFromLib(novel))
+                .setNegativeButton(android.R.string.cancel, (dialog, i) -> dialog.dismiss())
                 .show();
     }
 
     private void removeFromLib(Novel novel) {
         RanobeDatabase.databaseExecutor.execute(() -> RanobeDatabase.database().novels().delete(novel.url));
-        Snackbar.make(binding.getRoot(), "Removing novel from the library", Snackbar.LENGTH_LONG).show();
+        Snackbar.make(binding.getRoot(), R.string.library_removing_bookmark, Snackbar.LENGTH_LONG).show();
     }
 
     @Override

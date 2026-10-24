@@ -39,8 +39,20 @@
         android:paddingHorizontal="2dp"
         android:textAppearance="?attr/textAppearanceTitleSmall"
         android:textColor="?colorOnSurface"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/novel_menu"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/novel_cover_layout" />
+
+    <!-- the three dots; only shown when the screen gives the adapter a menu listener (Library does) -->
+    <ImageButton
+        android:id="@+id/novel_menu"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/novel_options"
+        android:src="@drawable/ic_more_vert"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/novel_name" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="novel_options">Novel options</string>
+    <string name="delete_all_chapters">Delete All Chapters</string>
+    <string name="remove_bookmark">Remove Bookmark</string>
+    <string name="remove_bookmark_confirmation">Remove this novel from your library?</string>
+    <string name="library_getting_chapters">Getting the chapter list…</string>
+    <string name="library_download_queued">Queued %1$d chapters for download</string>
+    <string name="library_nothing_to_download">All chapters are already downloaded</string>
+    <string name="library_download_failed">Couldn\'t get the chapter list: %1$s</string>
+    <string name="library_no_downloads">No downloaded chapters to delete</string>
+    <string name="library_download_permission_denied">Notification permission is needed to download chapters</string>
+    <string name="library_removing_bookmark">Removing novel from the library</string>
+</resources>

@@ -7,6 +7,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -24,7 +25,8 @@ import java.util.Objects;
 public class NovelAdapter extends RecyclerView.Adapter<NovelAdapter.MyViewHolder> {
     private final List<Novel> items;
     private final OnNovelItemClickListener listener;
-    private OnNovelLongClickListener longClickListener;
+    // when set, grid tiles show a three dot button that reports which novel it belongs to
+    private OnNovelMenuClickListener menuListener;
     // grid tiles stretch to their column; the default tile keeps a fixed width for horizontal rows
     private boolean grid = false;
 
@@ -33,10 +35,10 @@ public class NovelAdapter extends RecyclerView.Adapter<NovelAdapter.MyViewHolder
         this.listener = listener;
     }
 
-    public NovelAdapter(List<Novel> items, OnNovelItemClickListener listener, OnNovelLongClickListener longClickListener) {
+    public NovelAdapter(List<Novel> items, OnNovelItemClickListener listener, OnNovelMenuClickListener menuListener) {
         this.items = items;
         this.listener = listener;
-        this.longClickListener = longClickListener;
+        this.menuListener = menuListener;
     }
 
     public NovelAdapter asGrid() {
@@ -85,10 +87,10 @@ public class NovelAdapter extends RecyclerView.Adapter<NovelAdapter.MyViewHolder
         LayoutInflater inflater = LayoutInflater.from(parent.getContext());
         if (grid) {
             ItemNovelGridBinding binding = ItemNovelGridBinding.inflate(inflater, parent, false);
-            return new MyViewHolder(binding.getRoot(), binding.novelCoverLayout, binding.novelCover, binding.novelName);
+            return new MyViewHolder(binding.getRoot(), binding.novelCoverLayout, binding.novelCover, binding.novelName, binding.novelMenu);
         }
         ItemNovelBinding binding = ItemNovelBinding.inflate(inflater, parent, false);
-        return new MyViewHolder(binding.getRoot(), binding.novelCoverLayout, binding.novelCover, binding.novelName);
+        return new MyViewHolder(binding.getRoot(), binding.novelCoverLayout, binding.novelCover, binding.novelName, null);
     }
 
     @Override
@@ -110,14 +112,20 @@ public class NovelAdapter extends RecyclerView.Adapter<NovelAdapter.MyViewHolder
             if (current != RecyclerView.NO_POSITION && current < items.size())
                 listener.onNovelItemClick(items.get(current));
         });
-        holder.coverLayout.setOnLongClickListener(v -> {
-            int current = holder.getAdapterPosition();
-            if (longClickListener != null && current != RecyclerView.NO_POSITION && current < items.size()) {
-                longClickListener.onNovelLongClick(items.get(current));
-                return true;
+        // the three dots exist only on grid tiles, and only show when a screen wants them
+        if (holder.menu != null) {
+            if (menuListener == null) {
+                holder.menu.setVisibility(View.GONE);
+                holder.menu.setOnClickListener(null);
+            } else {
+                holder.menu.setVisibility(View.VISIBLE);
+                holder.menu.setOnClickListener(v -> {
+                    int current = holder.getAdapterPosition();
+                    if (current != RecyclerView.NO_POSITION && current < items.size())
+                        menuListener.onNovelMenuClick(items.get(current));
+                });
             }
-            return false;
-        });
+        }
     }
 
     @Override
@@ -129,20 +137,23 @@ public class NovelAdapter extends RecyclerView.Adapter<NovelAdapter.MyViewHolder
         void onNovelItemClick(Novel item);
     }
 
-    public interface OnNovelLongClickListener {
-        void onNovelLongClick(Novel novel);
+    public interface OnNovelMenuClickListener {
+        void onNovelMenuClick(Novel novel);
     }
 
     public class MyViewHolder extends RecyclerView.ViewHolder {
         private final View coverLayout;
         private final ImageView cover;
         private final TextView name;
+        // null on the fixed-width tile used in horizontal rows
+        private final View menu;
 
-        public MyViewHolder(@NonNull View root, View coverLayout, ImageView cover, TextView name) {
+        public MyViewHolder(@NonNull View root, View coverLayout, ImageView cover, TextView name, @Nullable View menu) {
             super(root);
             this.coverLayout = coverLayout;
             this.cover = cover;
             this.name = name;
+            this.menu = menu;
         }
     }
 }

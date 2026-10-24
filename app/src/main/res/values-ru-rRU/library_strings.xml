@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="novel_options">Параметры новеллы</string>
+    <string name="delete_all_chapters">Удалить все главы</string>
+    <string name="remove_bookmark">Убрать из закладок</string>
+    <string name="remove_bookmark_confirmation">Убрать эту новеллу из библиотеки?</string>
+    <string name="library_getting_chapters">Получаем список глав…</string>
+    <string name="library_download_queued">В очередь на загрузку добавлено глав: %1$d</string>
+    <string name="library_nothing_to_download">Все главы уже загружены</string>
+    <string name="library_download_failed">Не удалось получить список глав: %1$s</string>
+    <string name="library_no_downloads">Нет загруженных глав для удаления</string>
+    <string name="library_download_permission_denied">Для загрузки глав нужно разрешение на уведомления</string>
+    <string name="library_removing_bookmark">Новелла убирается из библиотеки</string>
+</resources>
