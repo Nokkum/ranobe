@@ -36,7 +36,6 @@ import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.service.DownloadService;
 import org.ranobe.ranobe.ui.browse.adapter.NovelAdapter;
 import org.ranobe.ranobe.ui.chapters.viewmodel.ChaptersViewModel;
-import org.ranobe.ranobe.ui.views.GetPro;
 import org.ranobe.ranobe.util.DisplayUtils;
 import org.ranobe.ranobe.util.DownloadCleaner;
 import org.ranobe.ranobe.util.ListUtils;
@@ -152,12 +151,6 @@ public class Library extends Fragment implements NovelAdapter.OnNovelItemClickLi
     }
 
     private void handleNewChaptersToggle() {
-        if (!Ranobe.isPro()) {
-            GetPro pro = new GetPro();
-            pro.show(getParentFragmentManager(), GetPro.TAG);
-            return;
-        }
-
         boolean enabled = Ranobe.isNewChapterUpdatesEnabled();
         if (enabled) {
             new MaterialAlertDialogBuilder(requireContext())
@@ -218,7 +211,7 @@ public class Library extends Fragment implements NovelAdapter.OnNovelItemClickLi
     private void syncNewChaptersIcon() {
         MenuItem item = binding.toolbar.getMenu().findItem(R.id.new_chapters);
         if (item == null) return;
-        boolean enabled = Ranobe.isPro() && Ranobe.isNewChapterUpdatesEnabled();
+        boolean enabled = Ranobe.isNewChapterUpdatesEnabled();
         item.setIcon(enabled ? R.drawable.ic_notifications_active : R.drawable.ic_disabled);
     }
 

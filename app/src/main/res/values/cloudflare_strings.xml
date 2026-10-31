@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cloudflare_blocked">%1$s wants to check that you\'re not a robot. Verify in the browser, then try again.</string>
+    <string name="cloudflare_verify">Verify in browser</string>
+    <string name="cloudflare_verify_title">Verify you\'re human</string>
+    <string name="cloudflare_verify_hint">Complete the check below if one shows up. This screen closes on its own once the site lets you in.</string>
+    <string name="cloudflare_verify_done">Done</string>
+</resources>

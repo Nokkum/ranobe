@@ -33,9 +33,6 @@
     <string name="synopsis">Описание</string>
     <string name="downloading_all_chapters_confirmation">Скачать все главы? Продолжить?</string>
     <string name="new_chapter_updates">Новые главы</string>
-    <string name="enjoy_premium_features_and_faster_updates_with_pro">Получите премиум‑функции и более быстрые обновления с Pro‑версией.</string>
-    <string name="ranobe_pro">Ranobe Pro</string>
-    <string name="get_pro">Получить Pro – Play Market</string>
     <string name="enable_new_chapter_update_notifications_for_your_library">Разрешить уведомления о новых главах для вашей библиотеки</string>
     <string name="enable">Включить</string>
     <string name="volume_key_scroll">Прокрутка кнопками громкости</string>
@@ -82,8 +79,6 @@
     <string name="wtr_lab_clipboard_no_link">В буфере обмена нет ссылки для входа в WTR-LAB</string>
     <string name="wtr_lab_signin_not_confirmed">WTR-LAB пока не подтвердил сессию. Завершите вход и попробуйте снова.</string>
     <string name="new_chapter_updates_sub">Сообщать о выходе новых глав</string>
-    <string name="edition_pro">PRO</string>
-    <string name="edition_free">FREE</string>
     <string name="settings_tagline">Читайте ранобэ из любимых источников</string>
     <string name="update_available">Доступна версия %1$s</string>
     <string name="settings_footer">Открытый исходный код · Сделано с ♥ сообществом Ranobe</string>

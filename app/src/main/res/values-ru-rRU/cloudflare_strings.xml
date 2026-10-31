@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cloudflare_blocked">%1$s хочет убедиться, что вы не робот. Пройдите проверку в браузере и попробуйте снова.</string>
+    <string name="cloudflare_verify">Проверить в браузере</string>
+    <string name="cloudflare_verify_title">Подтвердите, что вы человек</string>
+    <string name="cloudflare_verify_hint">Пройдите проверку ниже, если она появится. Экран закроется сам, когда сайт вас пропустит.</string>
+    <string name="cloudflare_verify_done">Готово</string>
+</resources>

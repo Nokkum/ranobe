@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="recommendations_title">You might also like</string>
+    <!-- badge on a recently added source in Explore -->
+    <string name="source_new">NEW</string>
+</resources>

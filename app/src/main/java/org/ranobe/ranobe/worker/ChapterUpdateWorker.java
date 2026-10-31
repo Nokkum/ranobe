@@ -47,13 +47,13 @@ public class ChapterUpdateWorker extends Worker {
 
     // Queues the run after this one, as long as updates are still switched on.
     private void scheduleNext() {
-        if (Ranobe.isPro() && Ranobe.isNewChapterUpdatesEnabled()) {
+        if (Ranobe.isNewChapterUpdatesEnabled()) {
             ChapterUpdateScheduler.scheduleNext(getApplicationContext());
         }
     }
 
     private void checkLibrary() {
-        if (!Ranobe.isPro() || !Ranobe.isNewChapterUpdatesEnabled()) {
+        if (!Ranobe.isNewChapterUpdatesEnabled()) {
             return;
         }
 

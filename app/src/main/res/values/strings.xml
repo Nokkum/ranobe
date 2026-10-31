@@ -32,9 +32,6 @@
     <string name="synopsis">Synopsis</string>
     <string name="downloading_all_chapters_confirmation">This will download all chapters. Do you want to continue?</string>
     <string name="new_chapter_updates">New Chapter Updates</string>
-    <string name="enjoy_premium_features_and_faster_updates_with_pro">Enjoy premium features and faster updates with Pro.</string>
-    <string name="ranobe_pro">Ranobe Pro</string>
-    <string name="get_pro">get pro - play store</string>
     <string name="enable_new_chapter_update_notifications_for_your_library">Enable new chapter update notifications for your library</string>
     <string name="enable">Enable</string>
     <string name="volume_key_scroll">Volume keys scroll</string>
@@ -81,8 +78,6 @@
     <string name="wtr_lab_clipboard_no_link">No WTR-LAB sign-in link found in the clipboard</string>
     <string name="wtr_lab_signin_not_confirmed">WTR-LAB hasn’t confirmed the session yet. Complete the sign-in and try again.</string>
     <string name="new_chapter_updates_sub">Get notified when new chapters are available</string>
-    <string name="edition_pro">PRO</string>
-    <string name="edition_free">FREE</string>
     <string name="settings_tagline">Read light novels from your favourite sources</string>
     <string name="update_available">Version %1$s is available</string>
     <string name="settings_footer">Open source · Made with ♥ by the Ranobe community</string>

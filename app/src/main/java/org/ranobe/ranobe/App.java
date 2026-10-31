@@ -33,7 +33,7 @@ public class App extends Application {
         AppCompatDelegate.setDefaultNightMode(Ranobe.getThemeMode(this));
         createNotificationChannels();
         // keeps the chapter checks going, and moves an older install to the fixed times
-        if (Ranobe.isPro() && Ranobe.isNewChapterUpdatesEnabled()) {
+        if (Ranobe.isNewChapterUpdatesEnabled()) {
             ChapterUpdateScheduler.ensureScheduled(this);
         }
     }

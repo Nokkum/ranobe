@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="downloads_empty">Загрузок пока нет. Откройте новеллу и нажмите «Экспорт в EPUB», чтобы сохранить её как книгу.</string>
+    <string name="downloads_empty_title">Загрузок пока нет</string>
+    <string name="export_all_chapters">Все главы</string>
+    <string name="export_book_title_range">%1$s (гл. %2$s)</string>
+    <string name="export_build_anyway">Собрать всё равно</string>
+    <string name="export_cancel">Отмена</string>
+    <string name="export_cancel_message">Уже загруженные главы будут удалены.</string>
+    <string name="export_cancel_title">Отменить экспорт?</string>
+    <string name="export_channel_progress">Прогресс экспорта EPUB</string>
+    <string name="export_channel_result">Готовые EPUB</string>
+    <string name="export_chapter_range">Диапазон глав</string>
+    <string name="export_chapter_title">Глава %1$s</string>
+    <string name="export_dialog_hint">Главы загружаются в фоне, пока вы пользуетесь приложением. Уже скачанные для офлайн-чтения главы используются повторно.</string>
+    <string name="export_dialog_title">Экспорт в EPUB</string>
+    <string name="export_discard">Удалить</string>
+    <string name="export_done_title">EPUB готов</string>
+    <string name="export_empty_chapter">Источник вернул пустую главу</string>
+    <string name="export_epub">Экспорт в EPUB</string>
+    <string name="export_error_memory">Недостаточно памяти.</string>
+    <string name="export_error_offline">Нет подключения к интернету.</string>
+    <string name="export_error_timeout">Источник слишком долго не отвечает.</string>
+    <string name="export_error_unknown">Что-то пошло не так.</string>
+    <string name="export_failed_title">Не удалось завершить %1$s</string>
+    <string name="export_from">С главы</string>
+    <string name="export_interrupted">Остановлено при закрытии приложения. Продолжите, чтобы закончить.</string>
+    <string name="export_invalid_range">Не может быть меньше первой главы</string>
+    <string name="export_keep">Оставить</string>
+    <string name="export_no_chapters">У этой новеллы нет глав для экспорта.</string>
+    <string name="export_no_chapters_in_range">В выбранном диапазоне нет глав.</string>
+    <string name="export_no_reader">Нет приложения для открытия EPUB. Установите читалку и попробуйте снова.</string>
+    <string name="export_open">Открыть</string>
+    <string name="export_open_settings">Настройки</string>
+    <string name="export_pause">Пауза</string>
+    <string name="export_paused_by_system">Приостановлено Android после долгой работы. Откройте приложение и продолжите.</string>
+    <string name="export_remove">Убрать</string>
+    <string name="export_resume">Продолжить</string>
+    <string name="export_retrying_in">Повтор через %1$d с: %2$s</string>
+    <string name="export_share">Поделиться</string>
+    <string name="export_start">Экспорт</string>
+    <string name="export_started">Экспорт начат</string>
+    <string name="export_started_no_notifications">Экспорт начат. Разрешите уведомления, чтобы видеть прогресс.</string>
+    <string name="export_status_building">Сборка EPUB · %1$d%%</string>
+    <string name="export_status_chapter">Глава %1$d из %2$d</string>
+    <string name="export_status_chapters">Загрузка списка глав…</string>
+    <string name="export_status_completed">Сохранено в Downloads/%1$s · %2$s</string>
+    <string name="export_status_failed">Ошибка экспорта</string>
+    <string name="export_status_paused">На паузе</string>
+    <string name="export_status_queued">Ожидает запуска</string>
+    <string name="export_status_waiting_network">Ожидание сети…</string>
+    <string name="export_storage_full">Недостаточно места. Освободите память и продолжите.</string>
+    <string name="export_to">По главу</string>
+    <string name="export_view">Открыть</string>
+    <string name="title_downloads">Загрузки</string>
+    <string name="export_epub_desc">Сохраните как книгу и читайте в любой читалке</string>
+    <string name="downloads_sub">EPUB сохраняются в Downloads/Ranobe</string>
+    <plurals name="export_left_out_chapters">
+        <item quantity="one">Пропущена %d глава</item>
+        <item quantity="few">Пропущено %d главы</item>
+        <item quantity="many">Пропущено %d глав</item>
+        <item quantity="other">Пропущено %d главы</item>
+    </plurals>
+    <plurals name="export_missing_chapters">
+        <item quantity="one">Не удалось загрузить %d главу</item>
+        <item quantity="few">Не удалось загрузить %d главы</item>
+        <item quantity="many">Не удалось загрузить %d глав</item>
+        <item quantity="other">Не удалось загрузить %d главы</item>
+    </plurals>
+    <plurals name="export_more_queued">
+        <item quantity="one">Ещё %d в очереди</item>
+        <item quantity="few">Ещё %d в очереди</item>
+        <item quantity="many">Ещё %d в очереди</item>
+        <item quantity="other">Ещё %d в очереди</item>
+    </plurals>
+</resources>

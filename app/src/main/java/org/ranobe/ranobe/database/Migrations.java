@@ -47,4 +47,11 @@ public class Migrations {
             database.execSQL("ALTER TABLE `Novel` ADD COLUMN `lastKnownChapterCount` INTEGER NOT NULL DEFAULT 0");
         }
     };
+
+    public static final Migration MIGRATION_4_5 = new Migration(4, 5) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("ALTER TABLE `NovelMetadata` ADD COLUMN `recommendations` TEXT");
+        }
+    };
 }

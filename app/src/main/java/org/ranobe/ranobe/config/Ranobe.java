@@ -6,7 +6,6 @@ import android.content.SharedPreferences;
 import androidx.appcompat.app.AppCompatDelegate;
 
 import org.ranobe.ranobe.App;
-import org.ranobe.ranobe.BuildConfig;
 import org.ranobe.ranobe.R;
 import org.ranobe.ranobe.models.ReaderTheme;
 
@@ -32,6 +31,8 @@ public class Ranobe {
     public static final String SETTING_SELECTED_SOURCE = "shared_pref_selected_source";
     public static final String SETTING_DISABLED_SOURCES = "shared_pref_disabled_sources";
 
+    public static final String SETTING_SEEN_SOURCES = "shared_pref_seen_sources";
+
     public static final String KEY_SOURCE_ID = "key_source_id";
     public static final String KEY_NOVEL = "key_novel";
     public static final String KEY_CHAPTER = "key_chapter";
@@ -50,22 +51,12 @@ public class Ranobe {
     public static final String MP_LITE_GITHUB_LINK = "https://github.com/AP-Atul/music_player_lite";
     public static final String DISCORD_INVITE_LINK = "https://discord.gg/6CQ6u64dca";
     public static final String RANOBE_M_LINK = "https://play.google.com/store/apps/details?id=in.atulpatare.ranobem.pro";
-    public static final String RANOBE_PRO_APP_LINK = "https://play.google.com/store/apps/details?id=org.ranobe.downloader.pro";
-
-    public static final String[] PRO_APP_FEATURES = {
-            "- ZERO ADS Ever!",
-            "- Buy once and own forever",
-            "- Quick bug fixes and updates",
-            "- First in line for new features",
-            "- New Chapter notification updates",
-            "- New features coming soon..."
-    };
 
     public static final String CHAPTER_IMAGES_DIR = "chapter-images";
 
     // database configs
     public static final String DATABASE_NAME = "ranobe_database";
-    public static final int DATABASE_VERSION = 4;
+    public static final int DATABASE_VERSION = 5;
 
     public static final String[] SILLY_EMOJI = new String[]{
             "( ╥﹏╥) ノシ",
@@ -89,10 +80,6 @@ public class Ranobe {
         put("dark", new ReaderTheme("#E8EAED", "#202124"));
         put("warm", new ReaderTheme("#6E4D2E", "#F7DFC6"));
     }};
-
-    public static boolean isPro() {
-        return "pro".equals(BuildConfig.FLAVOR);
-    }
 
     private static SharedPreferences.Editor getEditor(Context context) {
         SharedPreferences sharedPreferences = context.getSharedPreferences(
@@ -147,6 +134,18 @@ public class Ranobe {
             disabled.add(String.valueOf(sourceId));
         }
         getEditor(App.getContext()).putStringSet(SETTING_DISABLED_SOURCES, disabled).apply();
+    }
+
+    // a new source counts as seen once it was tapped in Explore
+    public static boolean isSourceSeen(int sourceId) {
+        return getSharedPref(App.getContext()).getStringSet(SETTING_SEEN_SOURCES, new HashSet<>()).contains(String.valueOf(sourceId));
+    }
+
+    public static void markSourceSeen(int sourceId) {
+        Set<String> seen = new HashSet<>(getSharedPref(App.getContext()).getStringSet(SETTING_SEEN_SOURCES, new HashSet<>()));
+        if (seen.add(String.valueOf(sourceId))) {
+            getEditor(App.getContext()).putStringSet(SETTING_SEEN_SOURCES, seen).apply();
+        }
     }
 
     public static boolean isSourceEnabled(int sourceId) {

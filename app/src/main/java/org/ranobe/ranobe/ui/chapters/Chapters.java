@@ -48,6 +48,8 @@ import org.ranobe.ranobe.models.ReadHistory;
 import org.ranobe.ranobe.service.DownloadService;
 import org.ranobe.ranobe.ui.chapters.adapter.ChapterAdapter;
 import org.ranobe.ranobe.ui.chapters.viewmodel.ChaptersViewModel;
+import org.ranobe.ranobe.ui.downloads.DownloadsActivity;
+import org.ranobe.ranobe.ui.downloads.EpubExportPrompt;
 import org.ranobe.ranobe.ui.error.Error;
 import org.ranobe.ranobe.ui.history.viewmodel.HistoryViewModel;
 import org.ranobe.ranobe.ui.reader.ReaderActivity;
@@ -68,6 +70,7 @@ public class Chapters extends BottomSheetDialogFragment implements ChapterAdapte
     private FragmentChaptersBinding binding;
     private ChaptersViewModel viewModel;
     private HistoryViewModel historyViewModel;
+    private EpubExportPrompt exportPrompt;
     private Novel novel;
     private ChapterAdapter adapter;
     // choosing downloaded chapters to delete: the list then shows only the downloaded ones
@@ -120,6 +123,7 @@ public class Chapters extends BottomSheetDialogFragment implements ChapterAdapte
         }
         viewModel = new ViewModelProvider(requireActivity()).get(ChaptersViewModel.class);
         historyViewModel = new ViewModelProvider(requireActivity()).get(HistoryViewModel.class);
+        exportPrompt = new EpubExportPrompt(this);
     }
 
     @Override
@@ -367,6 +371,10 @@ public class Chapters extends BottomSheetDialogFragment implements ChapterAdapte
             toggleSelectAll();
         } else if (id == R.id.delete_selected) {
             confirmDeleteSelected();
+        } else if (id == R.id.export_epub) {
+            exportPrompt.show(novel);
+        } else if (id == R.id.downloads) {
+            startActivity(new Intent(requireContext(), DownloadsActivity.class));
         }
         return true;
     }
@@ -527,6 +535,8 @@ public class Chapters extends BottomSheetDialogFragment implements ChapterAdapte
         setMenuVisible(menu, R.id.search, !selectionMode);
         setMenuVisible(menu, R.id.sort, !selectionMode);
         setMenuVisible(menu, R.id.download_all, !selectionMode);
+        setMenuVisible(menu, R.id.export_epub, !selectionMode);
+        setMenuVisible(menu, R.id.downloads, !selectionMode);
         setMenuVisible(menu, R.id.delete_downloads, !selectionMode && anyDownloaded);
         setMenuVisible(menu, R.id.select_downloads, !selectionMode && anyDownloaded);
         setMenuVisible(menu, R.id.select_all, selectionMode);

@@ -10,6 +10,7 @@ import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.network.HttpClient;
 import org.ranobe.ranobe.sources.AuthorSearch;
 import org.ranobe.ranobe.sources.MadaraSearch;
+import org.ranobe.ranobe.sources.Recommendations;
 import org.ranobe.ranobe.sources.SearchFilterSupport;
 import org.ranobe.ranobe.sources.Source;
 import org.ranobe.ranobe.util.AuthorNames;
@@ -96,6 +97,7 @@ public class WordRain69 implements Source, SearchFilterSupport, AuthorSearch {
             }
         }
 
+        novel.recommendations = Recommendations.madara(doc, SOURCE_ID, novel.url);
         return novel;
     }
 

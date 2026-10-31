@@ -9,8 +9,8 @@ android {
         applicationId "org.ranobe.ranobe"
         minSdk 23
         targetSdkVersion 36
-        versionCode 25
-        versionName "v1.2.1"
+        versionCode 27
+        versionName "v2.0.0"
 
         javaCompileOptions {
             annotationProcessorOptions {
@@ -23,20 +23,14 @@ android {
     productFlavors {
         beta {
             dimension "version"
-            applicationId "org.ranobe.downloader"
-            versionName "debug-v1.2.1"
-        }
-
-        pro {
-            dimension "version"
-            applicationId "org.ranobe.downloader.pro"
-            versionName "pro-v1.2.1"
+            applicationId "org.ranobe.debug"
+            versionName "debug-v2.0.0"
         }
 
         ranobe {
             dimension "version"
-            applicationId "org.ranobe.ranobe"
-            versionName "release-v1.2.1"
+            applicationId "org.ranobe.release"
+            versionName "v2.0.0"
         }
     }
 

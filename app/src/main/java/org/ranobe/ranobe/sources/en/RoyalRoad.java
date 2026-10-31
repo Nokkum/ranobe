@@ -116,6 +116,7 @@ public class RoyalRoad implements Source, SearchFilterSupport, AuthorSearch {
 
         novel.genres = genres;
 
+        novel.recommendations = similar(novel.url);
         return novel;
     }
 
@@ -172,6 +173,28 @@ public class RoyalRoad implements Source, SearchFilterSupport, AuthorSearch {
         );
 
         return chapter;
+    }
+
+    // the page loads its "You might also like" list from this endpoint, missing it isn't worth failing over
+    private List<Novel> similar(String novelUrl) {
+        List<Novel> items = new ArrayList<>();
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("/fiction/(\\d+)").matcher(novelUrl);
+        if (!m.find()) return items;
+        try {
+            org.json.JSONArray array = new org.json.JSONArray(HttpClient.GET(baseUrl + "/fictions/similar?fictionId=" + m.group(1), new HashMap<>()));
+            for (int i = 0; i < array.length(); i++) {
+                org.json.JSONObject o = array.getJSONObject(i);
+                String path = o.optString("url", "");
+                if (path.isEmpty()) continue;
+                Novel item = new Novel(baseUrl + path, sourceId);
+                item.name = o.optString("title", "").trim();
+                item.cover = o.optString("cover", "").trim();
+                items.add(item);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return items;
     }
 
     @Override

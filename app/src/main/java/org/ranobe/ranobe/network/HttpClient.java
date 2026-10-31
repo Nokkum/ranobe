@@ -12,12 +12,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.Cache;
 import okhttp3.CacheControl;
 import okhttp3.ConnectionPool;
+import okhttp3.CookieJar;
 import okhttp3.FormBody;
 import okhttp3.Interceptor;
 import okhttp3.MediaType;
@@ -29,10 +31,33 @@ import okhttp3.ResponseBody;
 
 public class HttpClient {
     // okhttp's default "okhttp/x.y" agent gets challenged or throttled by most novel sites
-    private static final String USER_AGENT = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 "
+    private static final String FALLBACK_USER_AGENT = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 "
             + "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36";
     private static volatile OkHttpClient client = null;
     private static volatile OkHttpClient wtrLabApiClient = null;
+    private static volatile String userAgent = null;
+
+    /**
+     * The agent sent with every request, the device's own browser engine when there is one so
+     * Cloudflare clearances earned in a WebView keep working.
+     */
+    public static String userAgent() {
+        if (userAgent == null) {
+            String agent = Cloudflare.webViewUserAgent();
+            userAgent = agent != null ? agent : FALLBACK_USER_AGENT;
+        }
+        return userAgent;
+    }
+
+    /**
+     * The same browser as {@link #userAgent()}, but as desktop Chrome, for sites whose mobile
+     * pages are only filled in by javascript.
+     */
+    public static String desktopUserAgent() {
+        return userAgent()
+                .replaceFirst("\\(Linux; Android[^)]*\\)", "(X11; Linux x86_64)")
+                .replace(" Mobile Safari/", " Safari/");
+    }
 
     private static OkHttpClient client() {
         if (client == null) {
@@ -43,14 +68,23 @@ public class HttpClient {
                 File baseDir = context != null ? context.getCacheDir() : new File(tmp != null ? tmp : ".");
                 File cacheDir = new File(baseDir, "cache-files");
                 Cache cache = new Cache(cacheDir, 50 * 1024 * 1024); //50 MiB, chapter pages are large
-                client = new OkHttpClient
+                OkHttpClient.Builder builder = new OkHttpClient
                         .Builder()
                         .connectTimeout(15, TimeUnit.SECONDS)
                         .readTimeout(30, TimeUnit.SECONDS)
                         .writeTimeout(30, TimeUnit.SECONDS)
                         // keep sockets alive across screens so repeat requests to a source skip TLS setup
                         .connectionPool(new ConnectionPool(10, 5, TimeUnit.MINUTES))
-                        .addInterceptor(new DefaultHeadersInterceptor())
+                        .addInterceptor(new DefaultHeadersInterceptor());
+                // on a device: share cookies with WebView and get past Cloudflare checks through it
+                if (context != null) {
+                    CookieJar cookies = WebViewCookieJar.createOrNull();
+                    if (cookies != null) {
+                        builder.cookieJar(cookies);
+                        builder.addInterceptor(new Cloudflare.Interceptor(context));
+                    }
+                }
+                client = builder
                         .addInterceptor(new OfflineCacheInterceptor())
                         .addNetworkInterceptor(new CacheInterceptor())
                         .cache(cache)
@@ -66,10 +100,25 @@ public class HttpClient {
                 if (wtrLabApiClient == null) {
                     // Session cookies are attached by the WTR-LAB API methods below. Do not
                     // follow redirects: an API redirect must never carry those cookies elsewhere.
-                    wtrLabApiClient = client().newBuilder()
+                    OkHttpClient.Builder builder = client().newBuilder()
+                            // WTR-LAB sends its own cookies and has its own human check (WtrLabVerifyActivity),
+                            // so it takes none of the browser pieces the main client was given: the shared
+                            // cookie jar would replace its Cookie header, and the Cloudflare retry would
+                            // hold a request for 25 seconds on a check only a person can pass.
+                            .cookieJar(CookieJar.NO_COOKIES)
                             .followRedirects(false)
-                            .followSslRedirects(false)
-                            .build();
+                            .followSslRedirects(false);
+                    List<Interceptor> interceptors = builder.interceptors();
+                    for (int i = interceptors.size() - 1; i >= 0; i--) {
+                        Interceptor interceptor = interceptors.get(i);
+                        if (interceptor instanceof Cloudflare.Interceptor) {
+                            interceptors.remove(i);
+                        } else if (interceptor instanceof DefaultHeadersInterceptor) {
+                            // the agent it has always been sent with
+                            interceptors.set(i, new DefaultHeadersInterceptor(FALLBACK_USER_AGENT));
+                        }
+                    }
+                    wtrLabApiClient = builder.build();
                 }
             }
         }
@@ -218,12 +267,24 @@ public class HttpClient {
     }
 
     public static class DefaultHeadersInterceptor implements Interceptor {
+        // null: the shared browser agent, see userAgent()
+        private final String agent;
+
+        public DefaultHeadersInterceptor() {
+            this(null);
+        }
+
+        public DefaultHeadersInterceptor(String agent) {
+            this.agent = agent;
+        }
+
         @NonNull
         @Override
         public Response intercept(Chain chain) throws IOException {
             Request request = chain.request();
             if (request.header("User-Agent") != null) return chain.proceed(request);
-            return chain.proceed(request.newBuilder().header("User-Agent", USER_AGENT).build());
+            return chain.proceed(request.newBuilder()
+                    .header("User-Agent", agent != null ? agent : userAgent()).build());
         }
     }
 
@@ -257,8 +318,10 @@ public class HttpClient {
 
             // never pin error / challenge pages in the cache, they'd be served for the next 15 minutes
             if (!response.isSuccessful()) return response;
-            // Authenticated WTR-LAB API results are private and must not be cached on disk.
-            if (chain.request().header("Cookie") != null) {
+            // Authenticated WTR-LAB API results are private and must not be cached on disk. Those requests say
+            // so themselves (no-store); a Cookie header can't be the sign, the shared cookie jar adds one to
+            // any request to a site that set a cookie.
+            if (chain.request().cacheControl().noStore()) {
                 return response.newBuilder().header("Cache-Control", "no-store").build();
             }
 

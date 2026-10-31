@@ -5,6 +5,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.activity.result.ActivityResultLauncher;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -22,11 +23,13 @@ import org.ranobe.ranobe.databinding.FragmentBrowseBinding;
 import org.ranobe.ranobe.models.DataSource;
 import org.ranobe.ranobe.models.Lang;
 import org.ranobe.ranobe.models.Novel;
+import org.ranobe.ranobe.network.Cloudflare;
 import org.ranobe.ranobe.sources.Source;
 import org.ranobe.ranobe.sources.SourceManager;
 import org.ranobe.ranobe.ui.browse.adapter.NovelAdapter;
 import org.ranobe.ranobe.ui.browse.viewmodel.BrowseViewModel;
 import org.ranobe.ranobe.ui.error.Error;
+import org.ranobe.ranobe.ui.webview.WebViewActivity;
 import org.ranobe.ranobe.util.DisplayUtils;
 
 import java.util.ArrayList;
@@ -40,6 +43,9 @@ public class Browse extends Fragment implements NovelAdapter.OnNovelItemClickLis
     private FragmentBrowseBinding binding;
 
     private BrowseViewModel viewModel;
+    // after viewModel: the lambda below uses it, and a field can't be used by name before its declaration
+    private final ActivityResultLauncher<String> verify =
+            registerForActivityResult(new WebViewActivity.Verify(), passed -> viewModel.loadMore());
     private NovelAdapter adapter;
     private GridLayoutManager layoutManager;
 
@@ -134,8 +140,16 @@ public class Browse extends Fragment implements NovelAdapter.OnNovelItemClickLis
             Error.navigateToErrorFragment(requireActivity(), error.message);
             return;
         }
-        Snackbar.make(binding.getRoot(), R.string.browse_load_failed, Snackbar.LENGTH_LONG)
-                .setAction(R.string.retry, v -> viewModel.loadMore())
+        // a Cloudflare check is passed in the browser first, anything else is just tried again
+        String blocked = Cloudflare.blockedUrl(error.message);
+        String message = blocked != null ? error.message : getString(R.string.browse_load_failed);
+        int action = blocked != null ? R.string.cloudflare_verify : R.string.retry;
+        View.OnClickListener onAction = v -> {
+            if (blocked != null) verify.launch(blocked);
+            else viewModel.loadMore();
+        };
+        Snackbar.make(binding.getRoot(), message, Snackbar.LENGTH_LONG)
+                .setAction(action, onAction)
                 .show();
     }
 

@@ -11,7 +11,10 @@ import androidx.room.PrimaryKey;
 
 import org.ranobe.ranobe.util.SourceUtils;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Entity
 public class Novel implements Parcelable {
@@ -45,6 +48,14 @@ public class Novel implements Parcelable {
     // for "new chapters" and must stay an exact count, which a search result's figure often isn't.)
     @Ignore
     public int searchChapterCount;
+    // other novels the source suggests on this one's page, filled by Source.details(); saved with the cached
+    // details as json (see NovelMapper), not as part of the library entry
+    @Ignore
+    public List<Novel> recommendations = new ArrayList<>();
+    // genre name -> the source's page listing that genre, filled by sources that have such pages. Nothing in this
+    // app opens them yet (a genre chip has no tap action), so it is neither saved nor passed on.
+    @Ignore
+    public Map<String, String> genreLinks = new LinkedHashMap<>();
 
     public Novel(String url) {
         this.id = SourceUtils.generateId(url);

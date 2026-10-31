@@ -6,6 +6,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.activity.result.ActivityResultLauncher;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.NavController;
@@ -14,11 +15,15 @@ import androidx.navigation.Navigation;
 import org.ranobe.ranobe.R;
 import org.ranobe.ranobe.config.Ranobe;
 import org.ranobe.ranobe.databinding.FragmentErrorBinding;
+import org.ranobe.ranobe.network.Cloudflare;
+import org.ranobe.ranobe.ui.webview.WebViewActivity;
 import org.ranobe.ranobe.util.NumberUtils;
 
 public class Error extends Fragment {
     private static final String ERR_PARAM = "error";
     private String error;
+    private final ActivityResultLauncher<String> verify =
+            registerForActivityResult(new WebViewActivity.Verify(), passed -> goBack());
 
     public Error() {
         // Required empty public constructor
@@ -50,6 +55,11 @@ public class Error extends Fragment {
         } else {
             binding.error.setText(error);
         }
+
+        // after a Cloudflare check the previous screen loads again on its own
+        String blocked = Cloudflare.blockedUrl(error);
+        binding.verify.setVisibility(blocked != null ? View.VISIBLE : View.GONE);
+        binding.verify.setOnClickListener(v -> verify.launch(blocked));
         return binding.getRoot();
     }
 
