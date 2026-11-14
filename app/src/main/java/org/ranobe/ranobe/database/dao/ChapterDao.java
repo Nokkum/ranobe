@@ -8,6 +8,7 @@ import androidx.room.OnConflictStrategy;
 import androidx.room.Query;
 
 import org.ranobe.ranobe.models.Chapter;
+import org.ranobe.ranobe.models.DownloadedChapter;
 
 import java.util.List;
 
@@ -30,6 +31,10 @@ public interface ChapterDao {
 
     @Query("SELECT url FROM chapter WHERE novelUrl=:novelUrl AND content IS NOT NULL AND content != ''")
     List<String> getDownloadedUrls(String novelUrl);
+
+    // the chapters downloaded for offline reading, in reading order, without their text
+    @Query("SELECT url, name, id FROM chapter WHERE novelUrl=:novelUrl AND content IS NOT NULL AND content != '' ORDER BY id ASC")
+    List<DownloadedChapter> getDownloadedChapters(String novelUrl);
 
     @Query("DELETE FROM chapter WHERE novelUrl=:novelUrl")
     int deleteByNovel(String novelUrl);

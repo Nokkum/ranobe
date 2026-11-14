@@ -26,7 +26,8 @@
     <string name="backup_problem_title">Couldn\'t finish</string>
     <string name="backup_error_read">That file couldn\'t be read.</string>
     <string name="backup_error_write">The file couldn\'t be saved there. Pick another place and try again.</string>
-    <string name="backup_error_not_backup">That isn\'t a Ranobe backup file.</string>
+    <string name="backup_error_not_json">Only .json files can be imported. Choose a file made with Export in Ranobe.</string>
+    <string name="backup_error_not_backup">That file wasn\'t exported from Ranobe, or it has been changed or damaged since. Only unchanged files made with Export can be imported.</string>
     <string name="backup_error_is_library">That is a library bookmarks backup. Import it under Library bookmarks.</string>
     <string name="backup_error_is_history">That is a reading history backup. Import it under Reading history.</string>
     <string name="backup_error_newer">That backup was made by a newer version of the app. Update the app to import it.</string>

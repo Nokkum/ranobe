@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chapter_locked_title">Глава заблокирована</string>
+    <string name="chapter_unlock">Разблокировать главу</string>
+    <string name="chapter_sign_in">Войти</string>
+    <string name="webnovel_unlock_steps">Эта глава заблокирована на Webnovel. Чтобы разблокировать её:\n\n1. Войдите в свой аккаунт Webnovel.\n2. Разблокируйте главу на её странице с помощью Fast Pass (FP).\n\nОба шага выполняются на сайте, в браузере. Когда закончите, нажмите «Готово», и глава загрузится.</string>
+</resources>

@@ -11,11 +11,13 @@ import org.ranobe.ranobe.models.Filter;
 import org.ranobe.ranobe.models.Lang;
 import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.network.HttpClient;
+import org.ranobe.ranobe.sources.AuthorSearch;
 import org.ranobe.ranobe.sources.ChallengeRequiredException;
 import org.ranobe.ranobe.sources.ChapterLockedException;
 import org.ranobe.ranobe.sources.SignInRequiredException;
 import org.ranobe.ranobe.sources.SearchFilterSupport;
 import org.ranobe.ranobe.sources.Source;
+import org.ranobe.ranobe.util.AuthorNames;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -24,7 +26,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class WtrLab implements Source, SearchFilterSupport {
+public class WtrLab implements Source, SearchFilterSupport, AuthorSearch {
     private static final int SOURCE_ID = 21;
     private static final String BASE_URL = "https://wtr-lab.com";
     public static final String SIGN_IN_REQUIRED_PREFIX = "WTR-LAB sign-in required";
@@ -253,6 +255,21 @@ public class WtrLab implements Source, SearchFilterSupport {
 
     static boolean needsChallenge(JSONObject response) {
         return response != null && response.optBoolean("requireTurnstile");
+    }
+
+    // True when the body of a reader API answer shows the human check has been passed: a successful answer that
+    // does not ask for it any more. Anything else (a refusal, a locked chapter, a page that is not JSON) says
+    // nothing about the check.
+    public static boolean isChallengeCleared(String body) {
+        if (body == null) return false;
+        String text = body.trim();
+        if (!text.startsWith("{")) return false;
+        try {
+            JSONObject response = new JSONObject(text);
+            return response.optBoolean("success") && !needsChallenge(response);
+        } catch (JSONException e) {
+            return false;
+        }
     }
 
     // Fast readers get the Turnstile demand above sooner; a steady pace during bulk downloads avoids some of it.
@@ -732,5 +749,29 @@ public class WtrLab implements Source, SearchFilterSupport {
             this.rawId = rawId;
             this.slug = slug;
         }
+    }
+
+    // The author's page lists their series from the same page data as the novel list. Each record carries its own
+    // author, so only the novels written by this author are kept, whatever else the page may list.
+    @Override
+    public List<Novel> authorWorks(String author, int page) throws Exception {
+        String url = BASE_URL + "/" + LANGUAGE + "/author/" + AuthorNames.encodePath(author)
+                + "?page=" + Math.max(page, 1);
+        JSONObject props = pageProps(HttpClient.GET(url, headers()));
+        return AuthorNames.keepWrittenBy(author, parseNovels(seriesOf(props)), false);
+    }
+
+    // The series list of a page: called "series" on the novel list; on any other page found by what it holds.
+    private static JSONArray seriesOf(JSONObject props) {
+        JSONArray named = props.optJSONArray("series");
+        if (named != null) return named;
+        java.util.Iterator<String> keys = props.keys();
+        while (keys.hasNext()) {
+            JSONArray array = props.optJSONArray(keys.next());
+            if (array == null || array.length() == 0) continue;
+            JSONObject first = array.optJSONObject(0);
+            if (first != null && first.has("raw_id") && first.has("slug")) return array;
+        }
+        return null;
     }
 }

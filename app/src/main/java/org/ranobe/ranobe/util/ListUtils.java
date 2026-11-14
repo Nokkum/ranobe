@@ -11,11 +11,23 @@ public class ListUtils {
     public static List<Chapter> searchByName(String keyword, List<Chapter> items) {
         List<Chapter> result = new ArrayList<>();
         for (Chapter item : items) {
-            if (item.name.toLowerCase().contains(keyword)) {
+            if (containsIgnoreCase(item.name, keyword)) {
                 result.add(item);
             }
         }
         return result;
+    }
+
+    // Whether the text holds the keyword, upper or lower case alike. It looks at the text where it is instead of
+    // lowercasing a copy: a novel can have thousands of chapters, and a copy of every name on every search made
+    // a lot of garbage for a weak phone to collect.
+    static boolean containsIgnoreCase(String text, String keyword) {
+        if (text == null) return false;
+        int length = keyword.length();
+        for (int start = 0, last = text.length() - length; start <= last; start++) {
+            if (text.regionMatches(true, start, keyword, 0, length)) return true;
+        }
+        return false;
     }
 
     public static List<Chapter> sortById(List<Chapter> items) {

@@ -67,4 +67,7 @@
         <item quantity="one">%d more queued</item>
         <item quantity="other">%d more queued</item>
     </plurals>
+    <string name="export_downloaded_chapters">All downloaded chapters</string>
+    <string name="export_downloaded_chapters_count">All downloaded chapters (%1$d)</string>
+    <string name="export_no_downloaded_chapters">This novel has no downloaded chapters to export.</string>
 </resources>

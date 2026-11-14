@@ -2,25 +2,29 @@ package org.ranobe.ranobe.network;
 
 import android.net.Uri;
 import android.webkit.CookieManager;
-import android.webkit.WebStorage;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Locale;
 
 // Reads WTR-LAB cookies from Android's WebView cookie store only for its HTTPS API origin.
 public final class WtrLabSession {
     public static final String ORIGIN = "https://wtr-lab.com";
     private static final String HOST = "wtr-lab.com";
+    // where WTR-LAB's cookies can be seen from: the site and its api, with and without www
+    private static final String[] COOKIE_URLS = {
+            ORIGIN + "/", ORIGIN + "/api/", "https://www.wtr-lab.com/", "https://www.wtr-lab.com/api/"
+    };
+    // page storage (local storage and the like) is kept per origin
+    private static final String[] STORAGE_ORIGINS = {ORIGIN, "https://www.wtr-lab.com"};
 
     private WtrLabSession() {
     }
 
-    // Forgets the WTR-LAB session on this device.
+    // Forgets the WTR-LAB session on this device, and only that: the cookies and page storage of wtr-lab.com (see
+    // SiteCookies).
     public static void clearLocal() {
-        CookieManager cookies = CookieManager.getInstance();
-        cookies.removeAllCookies(null);
-        cookies.flush();
-        WebStorage.getInstance().deleteAllData();
+        SiteCookies.clear(HOST, COOKIE_URLS, STORAGE_ORIGINS, Collections.<String>emptySet());
     }
 
     // True for HTTPS URLs on wtr-lab.com or one of its subdomains.

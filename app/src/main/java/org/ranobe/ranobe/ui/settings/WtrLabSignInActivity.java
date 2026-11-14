@@ -27,6 +27,7 @@ import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.color.MaterialColors;
 
 import org.ranobe.ranobe.R;
+import org.ranobe.ranobe.ui.webview.SignInWatch;
 
 public class WtrLabSignInActivity extends AppCompatActivity {
     private static final String SITE_HOST = "wtr-lab.com";
@@ -46,7 +47,10 @@ public class WtrLabSignInActivity extends AppCompatActivity {
 
     private WebView webView;
     private ProgressBar progress;
-    private boolean authFlowActive;
+    // When this page may close itself: once, and only for a sign-in that happened here. Opening it while already
+    // signed in must not count: the site sends a signed-in user from the login page straight to its home page, which
+    // looks exactly like a finished sign-in.
+    private SignInWatch watch = SignInWatch.opened();
     private boolean sessionCheckInProgress;
     private boolean sessionCheckAttempted;
 
@@ -152,7 +156,8 @@ public class WtrLabSignInActivity extends AppCompatActivity {
                 if (isWtrLabUrl(uri)) {
                     // Keep WebView's own cookie store as the source of truth for the session.
                     CookieManager.getInstance().flush();
-                    maybeCompleteSignIn(view, uri);
+                    if (watch.needsBaseline()) checkSessionAtOpen(view);
+                    else maybeCompleteSignIn(view, uri);
                 }
             }
 
@@ -168,10 +173,11 @@ public class WtrLabSignInActivity extends AppCompatActivity {
         if (intent != null
                 && android.content.Intent.ACTION_VIEW.equals(intent.getAction())
                 && (isMagicLink(data) || isLoginPageUri(data))) {
-            beginAuthFlow();
+            // a magic link is a sign-in being completed; a login page is just opened
+            beginAuthFlow(isMagicLink(data));
             webView.loadUrl(data.toString());
         } else {
-            beginAuthFlow();
+            beginAuthFlow(false);
             webView.loadUrl(LOGIN_URL);
         }
     }
@@ -187,10 +193,16 @@ public class WtrLabSignInActivity extends AppCompatActivity {
         return verificationRoute && token != null && !token.trim().isEmpty();
     }
 
-    private void beginAuthFlow() {
-        authFlowActive = true;
+    private void beginAuthFlow(boolean signInUnderway) {
+        watch = signInUnderway ? SignInWatch.signInUnderway() : SignInWatch.opened();
         sessionCheckInProgress = false;
         sessionCheckAttempted = false;
+    }
+
+    // The first look at the site: is there a session already? If so this page was opened to use the site and never
+    // closes itself; if not, the sign-in that is about to happen here will.
+    private void checkSessionAtOpen(WebView view) {
+        view.evaluateJavascript(SESSION_CHECK_SCRIPT, value -> watch.baseline("true".equals(value)));
     }
 
     private boolean shouldBlockNavigation(Uri uri) {
@@ -221,7 +233,7 @@ public class WtrLabSignInActivity extends AppCompatActivity {
 
     private void maybeCompleteSignIn(WebView view, Uri uri) {
         String path = uri.getEncodedPath();
-        if (!authFlowActive
+        if (!watch.isArmed()
                 || sessionCheckInProgress
                 || sessionCheckAttempted
                 || !(LOGIN_CALLBACK_PATH.equals(path) || (LOGIN_CALLBACK_PATH + "/").equals(path))) {
@@ -232,12 +244,14 @@ public class WtrLabSignInActivity extends AppCompatActivity {
         sessionCheckInProgress = true;
         view.evaluateJavascript(SESSION_CHECK_SCRIPT, value -> {
             sessionCheckInProgress = false;
-            if (isFinishing() || !authFlowActive) return;
+            if (isFinishing() || !watch.isArmed()) return;
             if ("true".equals(value)) {
-                authFlowActive = false;
-                CookieManager.getInstance().flush();
-                setResult(RESULT_OK);
-                finish();
+                // closes once: shouldClose() is true only the first time
+                if (watch.shouldClose(true)) {
+                    CookieManager.getInstance().flush();
+                    setResult(RESULT_OK);
+                    finish();
+                }
             } else {
                 Toast.makeText(this, R.string.wtr_lab_signin_not_confirmed, Toast.LENGTH_LONG).show();
             }
@@ -260,7 +274,7 @@ public class WtrLabSignInActivity extends AppCompatActivity {
         super.onNewIntent(intent);
         setIntent(intent);
         if (isMagicLink(intent.getData()) || isLoginPageUri(intent.getData())) {
-            beginAuthFlow();
+            beginAuthFlow(isMagicLink(intent.getData()));
             webView.loadUrl(intent.getData().toString());
         } else {
             Toast.makeText(this, R.string.wtr_lab_invalid_magic_link, Toast.LENGTH_SHORT).show();
@@ -275,7 +289,7 @@ public class WtrLabSignInActivity extends AppCompatActivity {
                 : clip.getItemAt(0).coerceToText(this);
         Uri uri = text == null ? null : Uri.parse(text.toString().trim());
         if (isMagicLink(uri)) {
-            beginAuthFlow();
+            beginAuthFlow(true);
             webView.loadUrl(uri.toString());
         } else {
             Toast.makeText(this, R.string.wtr_lab_clipboard_no_link, Toast.LENGTH_SHORT).show();

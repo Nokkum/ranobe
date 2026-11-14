@@ -1,0 +1,2 @@
+HSPLorg/ranobe/ranobe/**;->**(**)**
+Lorg/ranobe/ranobe/**;

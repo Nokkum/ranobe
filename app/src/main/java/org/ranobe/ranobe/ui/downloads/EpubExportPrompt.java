@@ -19,6 +19,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.snackbar.Snackbar;
 
 import org.ranobe.ranobe.R;
+import org.ranobe.ranobe.database.RanobeDatabase;
 import org.ranobe.ranobe.databinding.DialogEpubExportBinding;
 import org.ranobe.ranobe.export.ExportQueue;
 import org.ranobe.ranobe.models.Novel;
@@ -36,6 +37,7 @@ public class EpubExportPrompt {
     private Novel pendingNovel;
     private float pendingFrom;
     private float pendingTo;
+    private boolean pendingDownloadedOnly;
 
     public EpubExportPrompt(Fragment fragment) {
         this.fragment = fragment;
@@ -66,27 +68,44 @@ public class EpubExportPrompt {
                 .setNegativeButton(android.R.string.cancel, null)
                 .create();
         // validate before closing, so a bad range can be fixed in place
-        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-            float from = Float.NaN;
-            float to = Float.NaN;
-            if (binding.scope.getCheckedRadioButtonId() == R.id.scope_range) {
-                from = parse(binding.from.getText());
-                to = parse(binding.to.getText());
-                if (!Float.isNaN(from) && !Float.isNaN(to) && from > to) {
-                    binding.toLayout.setError(fragment.getString(R.string.export_invalid_range));
-                    return;
+        dialog.setOnShowListener(d -> {
+            showDownloadedCount(novel, binding, dialog);
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+                float from = Float.NaN;
+                float to = Float.NaN;
+                boolean downloadedOnly = binding.scope.getCheckedRadioButtonId() == R.id.scope_downloaded;
+                if (binding.scope.getCheckedRadioButtonId() == R.id.scope_range) {
+                    from = parse(binding.from.getText());
+                    to = parse(binding.to.getText());
+                    if (!Float.isNaN(from) && !Float.isNaN(to) && from > to) {
+                        binding.toLayout.setError(fragment.getString(R.string.export_invalid_range));
+                        return;
+                    }
                 }
-            }
-            dialog.dismiss();
-            start(novel, from, to);
-        }));
+                dialog.dismiss();
+                start(novel, from, to, downloadedOnly);
+            });
+        });
         dialog.show();
     }
 
-    private void start(Novel novel, float from, float to) {
+    // says how many chapters "all downloaded" is, and turns the choice off when there are none
+    private void showDownloadedCount(Novel novel, DialogEpubExportBinding binding, AlertDialog dialog) {
+        RanobeDatabase.databaseExecutor.execute(() -> {
+            int count = RanobeDatabase.database().chapters().getDownloadedUrls(novel.url).size();
+            binding.getRoot().post(() -> {
+                if (!dialog.isShowing()) return;
+                binding.scopeDownloaded.setText(dialog.getContext().getString(R.string.export_downloaded_chapters_count, count));
+                binding.scopeDownloaded.setEnabled(count > 0);
+            });
+        });
+    }
+
+    private void start(Novel novel, float from, float to, boolean downloadedOnly) {
         pendingNovel = novel;
         pendingFrom = from;
         pendingTo = to;
+        pendingDownloadedOnly = downloadedOnly;
         List<String> missing = new ArrayList<>();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
             missing.add(Manifest.permission.POST_NOTIFICATIONS);
@@ -106,7 +125,7 @@ public class EpubExportPrompt {
 
     private void startPending() {
         if (pendingNovel == null || !fragment.isAdded()) return;
-        ExportQueue.get(fragment.requireContext()).enqueue(pendingNovel, pendingFrom, pendingTo);
+        ExportQueue.get(fragment.requireContext()).enqueue(pendingNovel, pendingFrom, pendingTo, pendingDownloadedOnly);
         pendingNovel = null;
         View anchor = fragment.getView();
         if (anchor == null) return;

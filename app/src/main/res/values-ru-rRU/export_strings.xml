@@ -73,4 +73,7 @@
         <item quantity="many">Ещё %d в очереди</item>
         <item quantity="other">Ещё %d в очереди</item>
     </plurals>
+    <string name="export_downloaded_chapters">Все скачанные главы</string>
+    <string name="export_downloaded_chapters_count">Все скачанные главы (%1$d)</string>
+    <string name="export_no_downloaded_chapters">У этой новеллы нет скачанных глав для экспорта.</string>
 </resources>

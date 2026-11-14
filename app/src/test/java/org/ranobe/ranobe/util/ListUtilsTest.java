@@ -40,6 +40,28 @@ public class ListUtilsTest {
     }
 
     @Test
+    public void searchByName_ShouldIgnoreCase() {
+        Chapter chapter = new Chapter("novel");
+        chapter.name = "Chapter 5: The Dragon Wakes";
+        List<Chapter> named = new ArrayList<>(Collections.singletonList(chapter));
+        assertEquals(1, searchByName("dragon", named).size());
+        assertEquals(1, searchByName("DRAGON", named).size());
+        assertEquals(1, searchByName("wakes", named).size());
+        assertEquals(1, searchByName("chapter 5", named).size());
+        assertTrue(searchByName("dragons", named).isEmpty());
+    }
+
+    @Test
+    public void searchByName_ShouldMatchAnythingForAnEmptyKeywordAndSkipUnnamedChapters() {
+        Chapter unnamed = new Chapter("novel");
+        List<Chapter> mixed = new ArrayList<>(items);
+        mixed.add(unnamed);
+        assertEquals(20, searchByName("", items).size());
+        assertEquals(20, searchByName("item", mixed).size());
+        assertEquals(20, searchByName("", mixed).size());
+    }
+
+    @Test
     public void sortById_ShouldReturnValidResult() {
         List<Chapter> reversed = new ArrayList<>(items);
         Collections.reverse(reversed);

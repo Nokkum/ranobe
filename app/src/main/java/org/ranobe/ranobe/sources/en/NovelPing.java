@@ -8,8 +8,10 @@ import org.ranobe.ranobe.models.Filter;
 import org.ranobe.ranobe.models.Lang;
 import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.network.HttpClient;
+import org.ranobe.ranobe.sources.AuthorSearch;
 import org.ranobe.ranobe.sources.SearchFilterSupport;
 import org.ranobe.ranobe.sources.Source;
+import org.ranobe.ranobe.util.AuthorNames;
 import org.ranobe.ranobe.util.NumberUtils;
 import org.ranobe.ranobe.util.SearchFilters;
 import org.ranobe.ranobe.util.SourceUtils;
@@ -20,7 +22,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
-public class NovelPing implements Source, SearchFilterSupport {
+public class NovelPing implements Source, SearchFilterSupport, AuthorSearch {
 
     private final String baseUrl = "https://novelping.com";
     private final int sourceId = 18;
@@ -243,5 +245,14 @@ public class NovelPing implements Source, SearchFilterSupport {
         } catch (java.io.UnsupportedEncodingException e) {
             return value; // UTF-8 is always there
         }
+    }
+
+    // The author's page lists their novels like any other listing, ?page=N for the next ones.
+    @Override
+    public List<Novel> authorWorks(String author, int page) throws Exception {
+        String web = baseUrl + "/author/" + AuthorNames.encodePath(author) + (page <= 1 ? "" : "?page=" + page);
+        String body = HttpClient.GET(web, new HashMap<>());
+        // an author the site doesn't know gets some other listing instead of an error
+        return AuthorNames.appearsIn(body, author) ? parse(body) : new ArrayList<>();
     }
 }

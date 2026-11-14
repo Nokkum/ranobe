@@ -62,6 +62,8 @@ public class Details extends Fragment {
     private static final int SUMMARY_LINES = 6;
     private static final int TITLE_LINES = 3;
     private static final long TITLE_ANIMATION_MS = 400L;
+    // pixels on a side of the cover decoded for the faded backdrop, which is stretched over the whole header
+    private static final int HEADER_PICTURE_SIZE = 160;
     private FragmentDetailsBinding binding;
     private DetailsViewModel viewModel;
     private HistoryViewModel historyViewModel;
@@ -128,7 +130,10 @@ public class Details extends Fragment {
         shownCover = cover;
         Glide.with(binding.novelCover.getContext()).load(cover).centerCrop()
                 .transition(DrawableTransitionOptions.withCrossFade()).into(binding.novelCover);
-        Glide.with(binding.novelCover.getContext()).load(cover).centerCrop().into(binding.novelCoverHeader);
+        // The backdrop is shown faded and under a gradient, so a small picture stretched over it looks the same
+        // and takes a fraction of the memory a full-size second copy of the cover would.
+        Glide.with(binding.novelCover.getContext()).load(cover).centerCrop()
+                .override(HEADER_PICTURE_SIZE).into(binding.novelCoverHeader);
     }
 
     private void setUpListeners() {

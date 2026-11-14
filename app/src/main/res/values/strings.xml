@@ -78,7 +78,6 @@
     <string name="wtr_lab_clipboard_no_link">No WTR-LAB sign-in link found in the clipboard</string>
     <string name="wtr_lab_signin_not_confirmed">WTR-LAB hasn’t confirmed the session yet. Complete the sign-in and try again.</string>
     <string name="new_chapter_updates_sub">Get notified when new chapters are available</string>
-    <string name="settings_tagline">Read light novels from your favourite sources</string>
     <string name="update_available">Version %1$s is available</string>
     <string name="settings_footer">Open source · Made with ♥ by the Ranobe community</string>
     <string name="sources_hint">Turned-off sources are skipped in Search and can\'t be browsed.</string>
@@ -122,11 +121,13 @@
     <string name="wtr_lab_verify_title">Human check</string>
     <string name="wtr_lab_verify_done">Done</string>
     <string name="wtr_lab_verify">Verify</string>
-    <string name="wtr_lab_verify_hint">Complete WTR-LAB\'s check, wait for the chapter to appear, then tap Done.</string>
+    <string name="wtr_lab_verify_hint">Complete WTR-LAB\'s check. This closes by itself once it passes; if it stays open, wait for the chapter to appear, then tap Done.</string>
     <string name="wtr_lab_challenge_needed">WTR-LAB wants a quick human check (Turnstile) before more chapters.</string>
     <string name="download_challenge_needed">WTR-LAB asked for a human check (Turnstile). Tap this notification, complete the check and tap Done: the %1$d waiting chapters will continue automatically.</string>
     <string name="download_challenge_again">WTR-LAB still wants the human check. Open it again, wait for the chapter text to appear, then tap Done. %1$d chapters are waiting.</string>
     <string name="wtr_lab_downloads_resumed">Continuing %1$d downloads</string>
+    <string name="wtr_lab_open_webview">Open WTR-LAB in WebView</string>
+    <string name="wtr_lab_open_webview_sub">Sign in, or use the site with your session</string>
     <string name="wtr_lab_sign_out">Sign out of WTR-LAB</string>
     <string name="wtr_lab_sign_out_sub">End the session and forget it on this device</string>
     <string name="wtr_lab_sign_out_title">Sign out of WTR-LAB?</string>

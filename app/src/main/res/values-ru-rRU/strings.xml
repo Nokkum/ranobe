@@ -79,7 +79,6 @@
     <string name="wtr_lab_clipboard_no_link">В буфере обмена нет ссылки для входа в WTR-LAB</string>
     <string name="wtr_lab_signin_not_confirmed">WTR-LAB пока не подтвердил сессию. Завершите вход и попробуйте снова.</string>
     <string name="new_chapter_updates_sub">Сообщать о выходе новых глав</string>
-    <string name="settings_tagline">Читайте ранобэ из любимых источников</string>
     <string name="update_available">Доступна версия %1$s</string>
     <string name="settings_footer">Открытый исходный код · Сделано с ♥ сообществом Ranobe</string>
     <string name="sources_hint">Отключённые источники не участвуют в поиске и недоступны для просмотра.</string>
@@ -123,11 +122,13 @@
     <string name="wtr_lab_verify_title">Проверка</string>
     <string name="wtr_lab_verify_done">Готово</string>
     <string name="wtr_lab_verify">Пройти</string>
-    <string name="wtr_lab_verify_hint">Пройдите проверку WTR-LAB, дождитесь появления главы и нажмите «Готово».</string>
+    <string name="wtr_lab_verify_hint">Пройдите проверку WTR-LAB. Окно закроется само, когда она будет пройдена; если этого не произошло, дождитесь появления главы и нажмите «Готово».</string>
     <string name="wtr_lab_challenge_needed">WTR-LAB просит пройти быструю проверку (Turnstile), прежде чем показывать новые главы.</string>
     <string name="download_challenge_needed">WTR-LAB запросил проверку (Turnstile). Нажмите на это уведомление, пройдите проверку и нажмите «Готово»: ожидающие главы (%1$d) продолжат загрузку автоматически.</string>
     <string name="download_challenge_again">WTR-LAB всё ещё требует проверку. Откройте её снова, дождитесь появления текста главы и нажмите «Готово». Ожидает глав: %1$d.</string>
     <string name="wtr_lab_downloads_resumed">Продолжаем загрузку: %1$d</string>
+    <string name="wtr_lab_open_webview">Открыть WTR-LAB в WebView</string>
+    <string name="wtr_lab_open_webview_sub">Войдите или пользуйтесь сайтом со своей сессией</string>
     <string name="wtr_lab_sign_out">Выйти из WTR-LAB</string>
     <string name="wtr_lab_sign_out_sub">Завершить сессию и забыть её на этом устройстве</string>
     <string name="wtr_lab_sign_out_title">Выйти из WTR-LAB?</string>

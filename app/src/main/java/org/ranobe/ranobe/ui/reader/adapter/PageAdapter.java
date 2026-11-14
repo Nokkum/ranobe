@@ -14,6 +14,7 @@ import androidx.core.graphics.ColorUtils;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.DecodeFormat;
 import com.google.android.material.color.MaterialColors;
 
 import org.ranobe.ranobe.App;
@@ -234,10 +235,11 @@ public class PageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             Glide.with(view.getContext()).clear(view);
             return;
         }
+        // chapter pictures keep every shade; the 16-bit default for covers would band them
         if (url.startsWith("/")) {
-            Glide.with(view.getContext()).load(new File(url)).into(view);
+            Glide.with(view.getContext()).load(new File(url)).format(DecodeFormat.PREFER_ARGB_8888).into(view);
         } else {
-            Glide.with(view.getContext()).load(url).into(view);
+            Glide.with(view.getContext()).load(url).format(DecodeFormat.PREFER_ARGB_8888).into(view);
         }
     }
 

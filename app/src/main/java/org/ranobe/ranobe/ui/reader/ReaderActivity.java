@@ -14,6 +14,7 @@ import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.graphics.ColorUtils;
@@ -29,6 +30,7 @@ import androidx.recyclerview.widget.SimpleItemAnimator;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.color.MaterialColors;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.slider.Slider;
 import com.google.android.material.snackbar.Snackbar;
 
@@ -42,7 +44,10 @@ import org.ranobe.ranobe.models.ReadHistory;
 import org.ranobe.ranobe.models.ReaderTheme;
 import org.ranobe.ranobe.sources.ChallengeRequiredException;
 import org.ranobe.ranobe.sources.ChapterLockedException;
+import org.ranobe.ranobe.sources.ChapterUnlockSupport;
+import org.ranobe.ranobe.sources.SourceManager;
 import org.ranobe.ranobe.sources.en.WtrLab;
+import org.ranobe.ranobe.ui.webview.WebViewActivity;
 import org.ranobe.ranobe.ui.chapters.Chapters;
 import org.ranobe.ranobe.ui.chapters.viewmodel.ChaptersViewModel;
 import org.ranobe.ranobe.ui.history.viewmodel.HistoryViewModel;
@@ -111,6 +116,11 @@ public class ReaderActivity extends AppCompatActivity implements CustomizeReader
                 if (result.getResultCode() == RESULT_OK) retryFailedChapter();
             }
     );
+    // the site's own pages for a locked chapter (sign in, unlock); whatever was done there counts for the
+    // app's requests too, so the chapter is simply tried again
+    private final ActivityResultLauncher<WebViewActivity.Page> unlockLauncher = registerForActivityResult(
+            new WebViewActivity.Browse(), done -> retryFailedChapter());
+    private AlertDialog lockedDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -511,7 +521,12 @@ public class ReaderActivity extends AppCompatActivity implements CustomizeReader
         isLoading = false;
         binding.progress.hide();
         if (ChapterLockedException.isLocked(msg)) {
-            Snackbar.make(binding.getRoot(), R.string.chapter_locked, Snackbar.LENGTH_LONG).show();
+            ChapterUnlockSupport unlock = unlockSupport();
+            if (unlock != null && failedChapter != null) {
+                showLockedDialog(unlock, failedChapter);
+            } else {
+                Snackbar.make(binding.getRoot(), R.string.chapter_locked, Snackbar.LENGTH_LONG).show();
+            }
             return;
         }
         if (ChallengeRequiredException.isChallengeRequired(msg)) {
@@ -532,6 +547,35 @@ public class ReaderActivity extends AppCompatActivity implements CustomizeReader
                     else retryFailedChapter();
                 })
                 .show();
+    }
+
+    // the source being read, if its locked chapters can be unlocked on its site
+    private ChapterUnlockSupport unlockSupport() {
+        int sourceId = readHistory != null ? readHistory.sourceId : currentNovel != null ? currentNovel.sourceId : 0;
+        if (sourceId <= 0) return null;
+        Object source = SourceManager.getSource(sourceId);
+        return source instanceof ChapterUnlockSupport ? (ChapterUnlockSupport) source : null;
+    }
+
+    // "Chapter Locked" and the way out, in two steps that both happen on the site: sign in, then unlock
+    private void showLockedDialog(ChapterUnlockSupport unlock, Chapter chapter) {
+        if (lockedDialog != null && lockedDialog.isShowing()) return;
+        lockedDialog = new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.chapter_locked_title)
+                .setMessage(unlock.unlockSteps())
+                .setPositiveButton(R.string.chapter_unlock, (dialog, i) -> unlockLauncher.launch(
+                        new WebViewActivity.Page(unlock.unlockUrl(chapter), getString(R.string.chapter_unlock), unlock.userAgent())))
+                .setNeutralButton(R.string.chapter_sign_in, (dialog, i) -> unlockLauncher.launch(
+                        new WebViewActivity.Page(unlock.signInUrl(), getString(R.string.chapter_sign_in), unlock.userAgent())
+                                .closeOnSignIn(unlock.signInCookies(), unlock.signInCookieUrls())))
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (lockedDialog != null) lockedDialog.dismiss();
+        super.onDestroy();
     }
 
     private void openWtrLabVerify() {

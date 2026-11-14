@@ -9,8 +9,10 @@ import org.ranobe.ranobe.models.Filter;
 import org.ranobe.ranobe.models.Lang;
 import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.network.HttpClient;
+import org.ranobe.ranobe.sources.AuthorSearch;
 import org.ranobe.ranobe.sources.SearchFilterSupport;
 import org.ranobe.ranobe.sources.Source;
+import org.ranobe.ranobe.util.AuthorNames;
 import org.ranobe.ranobe.util.SearchFilters;
 import org.ranobe.ranobe.util.NumberUtils;
 import org.ranobe.ranobe.util.SourceUtils;
@@ -21,7 +23,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class AllNovel implements Source, SearchFilterSupport {
+public class AllNovel implements Source, SearchFilterSupport, AuthorSearch {
 
     // allnovel.org now redirects every path to the novelfull.com homepage
     private static final String LEGACY_BASE_URL = "https://allnovel.org";
@@ -214,5 +216,14 @@ public class AllNovel implements Source, SearchFilterSupport {
             return parse(HttpClient.GET(web, new HashMap<>()));
         }
         return new ArrayList<>();
+    }
+
+    // The author's page lists their novels like any other listing, ?page=N for the next ones.
+    @Override
+    public List<Novel> authorWorks(String author, int page) throws Exception {
+        String web = baseUrl + "/author/" + AuthorNames.encodePath(author) + "?page=" + Math.max(page, 1);
+        String body = HttpClient.GET(web, new HashMap<>());
+        // an author the site doesn't know gets some other listing instead of an error
+        return AuthorNames.appearsIn(body, author) ? parse(body) : new ArrayList<>();
     }
 }

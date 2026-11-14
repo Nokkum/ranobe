@@ -25,120 +25,38 @@
             android:textAppearance="?attr/textAppearanceHeadlineMedium"
             android:textColor="?colorOnSurface" />
 
-        <!-- App header -->
-        <com.google.android.material.card.MaterialCardView
-            style="@style/Widget.Material3.CardView.Filled"
+        <!-- Shown only when a newer release exists -->
+        <LinearLayout
+            android:id="@+id/update_card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:cardBackgroundColor="?colorPrimaryContainer"
-            app:cardCornerRadius="28dp"
-            app:contentPadding="20dp">
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/bg_setting_icon"
+            android:backgroundTint="?colorPrimaryContainer"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingVertical="4dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="4dp"
+            android:visibility="gone">
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:id="@+id/version_string"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:layout_weight="1"
+                android:textAppearance="?attr/textAppearanceBodyMedium"
+                android:textColor="?colorOnPrimaryContainer" />
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/get_update"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/update"
+                android:textColor="?colorOnPrimaryContainer" />
 
-                    <com.google.android.material.card.MaterialCardView
-                        style="@style/Widget.Material3.CardView.Filled"
-                        android:layout_width="64dp"
-                        android:layout_height="64dp"
-                        app:cardBackgroundColor="?colorSurface"
-                        app:cardCornerRadius="20dp">
-
-                        <ImageView
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:contentDescription="@string/app_name"
-                            android:src="@mipmap/ic_launcher_round" />
-
-                    </com.google.android.material.card.MaterialCardView>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="16dp"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
-
-                        <LinearLayout
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/app_name"
-                                android:textAppearance="?attr/textAppearanceTitleLarge"
-                                android:textColor="?colorOnPrimaryContainer"
-                                android:textStyle="bold" />
-
-                        </LinearLayout>
-
-                        <TextView
-                            android:id="@+id/app_version"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:textAppearance="?attr/textAppearanceBodyMedium"
-                            android:textColor="?colorOnPrimaryContainer"
-                            tools:text="v0.0.15" />
-
-                    </LinearLayout>
-
-                </LinearLayout>
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="@string/settings_tagline"
-                    android:textAppearance="?attr/textAppearanceBodyMedium"
-                    android:textColor="?colorOnPrimaryContainer" />
-
-                <!-- shown only when a newer release exists -->
-                <LinearLayout
-                    android:id="@+id/update_card"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:background="@drawable/bg_setting_icon"
-                    android:backgroundTint="?colorSurface"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingVertical="4dp"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="4dp"
-                    android:visibility="gone">
-
-                    <TextView
-                        android:id="@+id/version_string"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:textAppearance="?attr/textAppearanceBodyMedium"
-                        android:textColor="?colorOnSurface" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/get_update"
-                        style="@style/Widget.Material3.Button.TextButton"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/update" />
-
-                </LinearLayout>
-
-            </LinearLayout>
-
-        </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
 
         <!-- Сессия WTR-LAB -->
         <TextView
@@ -155,6 +73,17 @@
                 app:settingIcon="@drawable/ic_account"
                 app:settingSubtitle="@string/wtr_lab_account_sub"
                 app:settingTitle="@string/wtr_lab_account" />
+
+                <com.google.android.material.divider.MaterialDivider
+                    style="@style/SettingsDivider" />
+
+                <org.ranobe.ranobe.ui.views.SettingOptionView
+                    android:id="@+id/webnovel_account_option"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:settingIcon="@drawable/ic_account"
+                    app:settingSubtitle="@string/webnovel_account_sub"
+                    app:settingTitle="@string/webnovel_account" />
 
         </com.google.android.material.card.MaterialCardView>
 

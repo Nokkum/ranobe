@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="webnovel_account">Webnovel account</string>
+    <string name="webnovel_account_sub">Sign in to unlock chapters with a Fast Pass</string>
+    <string name="webnovel_status_signed_in">Signed in · unlocked chapters open in the reader</string>
+    <string name="webnovel_status_signed_out">Not signed in · tap to sign in</string>
+    <string name="webnovel_open_webview">Open Webnovel in WebView</string>
+    <string name="webnovel_open_webview_sub">Manage your account, or unlock chapters with a Fast Pass</string>
+    <string name="webnovel_sign_out">Sign out of Webnovel</string>
+    <string name="webnovel_sign_out_sub">Forget the Webnovel sign-in on this device</string>
+    <string name="webnovel_sign_out_title">Sign out of Webnovel?</string>
+    <string name="webnovel_sign_out_message">The sign-in is forgotten on this device only. Chapters you already unlocked stay unlocked on your account.</string>
+    <string name="webnovel_signed_out">Signed out of Webnovel</string>
+    <string name="webnovel_sign_in_title">Sign in to Webnovel</string>
+    <string name="webnovel_browse_title">Webnovel</string>
+</resources>

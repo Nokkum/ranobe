@@ -11,15 +11,17 @@ import org.ranobe.ranobe.models.Filter;
 import org.ranobe.ranobe.models.Lang;
 import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.network.HttpClient;
+import org.ranobe.ranobe.sources.AuthorSearch;
 import org.ranobe.ranobe.sources.Recommendations;
 import org.ranobe.ranobe.sources.Source;
+import org.ranobe.ranobe.util.AuthorNames;
 import org.ranobe.ranobe.util.NumberUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-public class FreeWebNovel implements Source {
+public class FreeWebNovel implements Source, AuthorSearch {
     private static final String BASE_URL = "https://freewebnovel.com";
     private static final int SOURCE_ID = 16;
     private static final int CHAPTER_PAGE_SIZE = 200;
@@ -202,5 +204,14 @@ public class FreeWebNovel implements Source {
             return parseNovel(response);
         }
         return new ArrayList<>();
+    }
+
+    // The author's page lists their novels like any other listing; later pages add "/2", "/3"...
+    @Override
+    public List<Novel> authorWorks(String author, int page) throws Exception {
+        String web = BASE_URL + "/author/" + AuthorNames.encodePath(author) + (page <= 1 ? "" : "/" + page);
+        String body = HttpClient.GET(web, new HashMap<>());
+        // an author the site doesn't know gets some other listing instead of an error
+        return AuthorNames.appearsIn(body, author) ? parseNovel(body) : new ArrayList<>();
     }
 }

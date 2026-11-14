@@ -44,7 +44,7 @@ public final class AuthorNames {
     }
 
     // Letters and digits only, lower case, accents removed: "J. K. Rowling" and "jk rowling" share a key.
-    static String key(String name) {
+    public static String key(String name) {
         if (name == null) return "";
         String plain = Normalizer.normalize(name, Normalizer.Form.NFD).replaceAll("\\p{M}+", "");
         return plain.toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]+", "");
@@ -69,6 +69,18 @@ public final class AuthorNames {
             if (listed ? matches(wanted, novel.authors) : keepUnknown) kept.add(novel);
         }
         return kept;
+    }
+
+    // For a path segment of an address ("/author/Tang%20Jia"): there a space is "%20", the "+" of a query is just a plus.
+    public static String encodePath(String name) {
+        return encode(name).replace("+", "%20");
+    }
+
+    // Whether a page names the author somewhere. A site that doesn't know an author often answers with some other
+    // listing rather than an error, and the novels on that page are not this author's.
+    public static boolean appearsIn(String page, String author) {
+        String want = key(author);
+        return !want.isEmpty() && page != null && key(page).contains(want);
     }
 
     // For the query part of an address; a space becomes "+", which every site here reads as a space.

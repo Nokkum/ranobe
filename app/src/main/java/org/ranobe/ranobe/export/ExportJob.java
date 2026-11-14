@@ -22,6 +22,9 @@ public class ExportJob {
     // inclusive chapter number range, NaN for open ends
     public final float from;
     public final float to;
+    // only the chapters already downloaded for offline reading, taken from the database: no chapter list from the
+    // source and no chapter text fetched
+    public final boolean downloadedOnly;
     public final long createdAt;
     // filled once the chapter list is fetched, in reading order
     public final List<Item> chapters = new ArrayList<>();
@@ -40,13 +43,19 @@ public class ExportJob {
     public volatile long outputSize;
     public volatile int missingChapters;
     public ExportJob(Novel novel, float from, float to) {
-        this(UUID.randomUUID().toString(), novel, from, to, System.currentTimeMillis());
+        this(novel, from, to, false);
     }
-    private ExportJob(String id, Novel novel, float from, float to, long createdAt) {
+
+    public ExportJob(Novel novel, float from, float to, boolean downloadedOnly) {
+        this(UUID.randomUUID().toString(), novel, from, to, downloadedOnly, System.currentTimeMillis());
+    }
+
+    private ExportJob(String id, Novel novel, float from, float to, boolean downloadedOnly, long createdAt) {
         this.id = id;
         this.novel = novel;
         this.from = from;
         this.to = to;
+        this.downloadedOnly = downloadedOnly;
         this.createdAt = createdAt;
     }
 
@@ -61,7 +70,7 @@ public class ExportJob {
 
         ExportJob job = new ExportJob(o.getString("id"), novel,
                 (float) o.optDouble("from", Double.NaN), (float) o.optDouble("to", Double.NaN),
-                o.optLong("createdAt"));
+                o.optBoolean("downloadedOnly"), o.optLong("createdAt"));
         job.status = Status.valueOf(o.getString("status"));
         job.phase = Phase.valueOf(o.optString("phase", Phase.CHAPTERS.name()));
         job.message = o.optString("message", null);
@@ -150,6 +159,7 @@ public class ExportJob {
                 .put("novel", n)
                 .put("from", Float.isNaN(from) ? null : (double) from)
                 .put("to", Float.isNaN(to) ? null : (double) to)
+                .put("downloadedOnly", downloadedOnly)
                 .put("createdAt", createdAt)
                 .put("status", status.name())
                 .put("phase", phase.name())

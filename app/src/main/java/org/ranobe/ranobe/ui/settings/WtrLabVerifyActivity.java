@@ -27,16 +27,23 @@ import com.google.android.material.color.MaterialColors;
 
 import org.ranobe.ranobe.R;
 import org.ranobe.ranobe.service.DownloadService;
+import org.ranobe.ranobe.sources.en.WtrLab;
+import org.ranobe.ranobe.ui.webview.ReaderCheckHook;
 
 // Lets the user pass WTR-LAB's human check (Cloudflare Turnstile) in a WebView. The app's own requests
 // cannot solve it. The page's own script verifies the user; the app only shares the WebView cookies.
+// The screen closes itself as soon as the page's reader API stops asking for the check (see ReaderCheckHook); Done
+// stays for a WebView too old to report that, or a check the page does not show on its own.
 public class WtrLabVerifyActivity extends AppCompatActivity {
     public static final String EXTRA_URL = "url";
     private static final String SITE_HOST = "wtr-lab.com";
     private static final String HOME_URL = "https://wtr-lab.com/en";
+    private static final String SITE_ORIGIN = "https://" + SITE_HOST;
 
     private WebView webView;
     private ProgressBar progress;
+    // the check closes this screen once, whether the page reports it or the user taps Done
+    private boolean verified;
 
     public static Intent intent(Context context, @Nullable String chapterUrl) {
         return new Intent(context, WtrLabVerifyActivity.class)
@@ -68,16 +75,7 @@ public class WtrLabVerifyActivity extends AppCompatActivity {
         toolbar.inflateMenu(R.menu.menu_wtr_lab_verify);
         toolbar.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == R.id.verify_done) {
-                // Make sure anything the check stored is on disk before the app retries.
-                CookieManager.getInstance().flush();
-                // Chapters that stopped at the check continue now. If the check did not take, the first
-                // one hits it again and the downloads pause again.
-                int resumed = DownloadService.resumeAfterChallenge(getApplicationContext());
-                if (resumed > 0) {
-                    Toast.makeText(this, getString(R.string.wtr_lab_downloads_resumed, resumed), Toast.LENGTH_SHORT).show();
-                }
-                setResult(RESULT_OK);
-                finish();
+                finishVerified();
                 return true;
             }
             return false;
@@ -102,6 +100,22 @@ public class WtrLabVerifyActivity extends AppCompatActivity {
         });
     }
 
+    // Done, tapped or earned: the check is over and the app goes on. Only the first call counts.
+    private void finishVerified() {
+        if (verified || isFinishing()) return;
+        verified = true;
+        // Make sure anything the check stored is on disk before the app retries.
+        CookieManager.getInstance().flush();
+        // Chapters that stopped at the check continue now. If the check did not take, the first
+        // one hits it again and the downloads pause again.
+        int resumed = DownloadService.resumeAfterChallenge(getApplicationContext());
+        if (resumed > 0) {
+            Toast.makeText(this, getString(R.string.wtr_lab_downloads_resumed, resumed), Toast.LENGTH_SHORT).show();
+        }
+        setResult(RESULT_OK);
+        finish();
+    }
+
     private String startUrl() {
         String raw = getIntent() == null ? null : getIntent().getStringExtra(EXTRA_URL);
         Uri uri = raw == null ? null : Uri.parse(raw);
@@ -120,6 +134,11 @@ public class WtrLabVerifyActivity extends AppCompatActivity {
         webView.getSettings().setAllowFileAccess(false);
         webView.getSettings().setAllowContentAccess(false);
         webView.getSettings().setMixedContentMode(android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        // The page's own script passes the check; once its reader API stops asking for it, there is nothing left
+        // to wait for. Has to be in place before the first page loads.
+        ReaderCheckHook.install(webView, SITE_ORIGIN, body -> {
+            if (WtrLab.isChallengeCleared(body)) finishVerified();
+        });
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onProgressChanged(WebView view, int newProgress) {

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="webnovel_account">Аккаунт Webnovel</string>
+    <string name="webnovel_account_sub">Войдите, чтобы разблокировать главы с помощью Fast Pass</string>
+    <string name="webnovel_status_signed_in">Вы вошли · разблокированные главы открываются в читалке</string>
+    <string name="webnovel_status_signed_out">Вы не вошли · нажмите, чтобы войти</string>
+    <string name="webnovel_open_webview">Открыть Webnovel в WebView</string>
+    <string name="webnovel_open_webview_sub">Управляйте аккаунтом или разблокируйте главы с помощью Fast Pass</string>
+    <string name="webnovel_sign_out">Выйти из Webnovel</string>
+    <string name="webnovel_sign_out_sub">Забыть вход в Webnovel на этом устройстве</string>
+    <string name="webnovel_sign_out_title">Выйти из Webnovel?</string>
+    <string name="webnovel_sign_out_message">Вход забывается только на этом устройстве. Уже разблокированные главы остаются разблокированными в вашем аккаунте.</string>
+    <string name="webnovel_signed_out">Вы вышли из Webnovel</string>
+    <string name="webnovel_sign_in_title">Вход в Webnovel</string>
+    <string name="webnovel_browse_title">Webnovel</string>
+</resources>

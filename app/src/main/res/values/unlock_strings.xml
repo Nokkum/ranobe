@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chapter_locked_title">Chapter Locked</string>
+    <string name="chapter_unlock">Unlock chapter</string>
+    <string name="chapter_sign_in">Sign in</string>
+    <string name="webnovel_unlock_steps">This chapter is locked on Webnovel. To unlock it:\n\n1. Sign in to your Webnovel account.\n2. Unlock the chapter on its page with a Fast Pass (FP).\n\nBoth steps are done on the site, in the browser. Tap Done when you\'re finished and the chapter loads.</string>
+</resources>

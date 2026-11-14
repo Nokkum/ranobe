@@ -127,7 +127,11 @@ public class ExportQueue {
      * Queues an export of the chapters numbered {@code from} to {@code to}, NaN for no limit.
      */
     public ExportJob enqueue(Novel novel, float from, float to) {
-        ExportJob job = new ExportJob(novel, from, to);
+        return enqueue(novel, from, to, false);
+    }
+
+    public ExportJob enqueue(Novel novel, float from, float to, boolean downloadedOnly) {
+        ExportJob job = new ExportJob(novel, from, to, downloadedOnly);
         jobs.add(0, job);
         changed();
         kick();

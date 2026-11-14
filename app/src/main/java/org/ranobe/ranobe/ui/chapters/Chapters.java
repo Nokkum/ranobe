@@ -64,6 +64,8 @@ import java.util.List;
 import java.util.Set;
 
 public class Chapters extends BottomSheetDialogFragment implements ChapterAdapter.OnChapterItemClickListener, ChapterAdapter.OnChapterDownloadClickListener, ChapterAdapter.OnChapterSelectionListener, Toolbar.OnMenuItemClickListener {
+    // the chapter search filters once the typing has paused this long, not on every letter
+    private static final long FILTER_PAUSE_MS = 250;
     private final List<Chapter> originalItems = new ArrayList<>();
     private final List<ReadHistory> readHistoryList = new ArrayList<>();
     private final Set<String> downloadedUrls = new HashSet<>();
@@ -78,6 +80,11 @@ public class Chapters extends BottomSheetDialogFragment implements ChapterAdapte
     private Set<String> selectedUrls = new HashSet<>();
     private final List<Chapter> selectionItems = new ArrayList<>();
     private ChapterAdapter selectionAdapter;
+    // What the chapter search shows. One adapter is kept for every keyword, so the list reuses its rows
+    // instead of inflating them again each time the keyword changes.
+    private final List<Chapter> searchItems = new ArrayList<>();
+    private ChapterAdapter searchAdapter;
+    private final Runnable filterAfterTyping = this::filterWhenTypingPauses;
     private OnBackPressedCallback selectionBackCallback;
     private final BroadcastReceiver downloadReceiver = new BroadcastReceiver() {
         @Override
@@ -162,6 +169,7 @@ public class Chapters extends BottomSheetDialogFragment implements ChapterAdapte
     public void onDestroyView() {
         super.onDestroyView();
         requireContext().unregisterReceiver(downloadReceiver);
+        binding.searchField.removeCallbacks(filterAfterTyping);
         binding = null;
     }
 
@@ -251,24 +259,42 @@ public class Chapters extends BottomSheetDialogFragment implements ChapterAdapte
         }
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     private void searchResults(String keyword) {
         if (!keyword.isEmpty()) {
             // while choosing, only the downloaded chapters are searched
             List<Chapter> base = selectionMode ? selectionItems : originalItems;
             List<Chapter> filtered = ListUtils.searchByName(keyword.toLowerCase(), base);
             // same read state and downloads as the full list
-            ChapterAdapter searchAdapter = new ChapterAdapter(filtered, readHistoryList, this);
-            searchAdapter.setDownloadListener(this);
-            searchAdapter.setSelectionListener(this);
+            boolean shown = binding.chapterList.getAdapter() == searchAdapter;
+            if (searchAdapter == null) {
+                searchAdapter = new ChapterAdapter(searchItems, readHistoryList, this);
+                searchAdapter.setDownloadListener(this);
+                searchAdapter.setSelectionListener(this);
+            } else if (!shown) {
+                // the history is kept up to date only while this adapter is on screen
+                searchAdapter.setHistory(readHistoryList);
+            }
             searchAdapter.setDownloadedUrls(new HashSet<>(downloadedUrls));
             searchAdapter.setSelectionMode(selectionMode, selectedUrls);
-            binding.chapterList.setAdapter(searchAdapter);
+            searchItems.clear();
+            searchItems.addAll(filtered);
+            searchAdapter.notifyDataSetChanged();
+            if (!shown) binding.chapterList.setAdapter(searchAdapter);
+            binding.chapterList.scrollToPosition(0);
         } else if (selectionMode && selectionAdapter != null) {
             selectionAdapter.setSelected(selectedUrls);
             binding.chapterList.setAdapter(selectionAdapter);
         } else {
             binding.chapterList.setAdapter(adapter);
         }
+    }
+
+    // The typing paused: filter by what is in the search box now.
+    private void filterWhenTypingPauses() {
+        if (binding == null) return;
+        CharSequence text = binding.searchField.getText();
+        searchResults(text == null ? "" : text.toString());
     }
 
     private void setSearchView() {
@@ -640,7 +666,12 @@ public class Chapters extends BottomSheetDialogFragment implements ChapterAdapte
 
         @Override
         public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-            searchResults(charSequence.toString());
+            binding.searchField.removeCallbacks(filterAfterTyping);
+            String keyword = charSequence.toString();
+            // An empty box, as when the search is closed, brings the whole list back at once; while there is
+            // something to search for the list is only filtered once the typing pauses.
+            if (keyword.isEmpty()) searchResults(keyword);
+            else binding.searchField.postDelayed(filterAfterTyping, FILTER_PAUSE_MS);
         }
 
         @Override

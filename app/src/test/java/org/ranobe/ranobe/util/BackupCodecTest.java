@@ -2,10 +2,12 @@ package org.ranobe.ranobe.util;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import org.json.JSONObject;
 import org.junit.Test;
 import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.models.ReadHistory;
@@ -51,6 +53,13 @@ public class BackupCodecTest {
         entry.timestamp = timestamp;
         entry.content = "the full chapter text that must not be exported";
         return entry;
+    }
+
+    // Adds the signature Export would, so hand-written fixtures test their contents, not who made them.
+    private static String signed(String json) throws Exception {
+        JSONObject root = new JSONObject(json);
+        root.put("signature", BackupCodec.signatureOf(root));
+        return root.toString();
     }
 
     private static BackupCodec.BackupException.Reason reasonOfLibrary(String text) {
@@ -147,8 +156,8 @@ public class BackupCodecTest {
 
     @Test
     public void library_idComesFromTheUrlNotTheFile() throws Exception {
-        String json = "{\"app\":\"ranobe\",\"type\":\"library\",\"version\":1,"
-                + "\"novels\":[{\"id\":12345,\"url\":\"https://example.org/x\",\"name\":\"X\"}]}";
+        String json = signed("{\"app\":\"ranobe\",\"type\":\"library\",\"version\":1,"
+                + "\"novels\":[{\"id\":12345,\"url\":\"https://example.org/x\",\"name\":\"X\"}]}");
 
         Novel novel = BackupCodec.parseLibrary(json).items.get(0);
 
@@ -157,13 +166,13 @@ public class BackupCodecTest {
 
     @Test
     public void library_entriesWithoutAUrlAreCountedAsInvalid() throws Exception {
-        String json = "{\"app\":\"ranobe\",\"type\":\"library\",\"version\":1,\"novels\":["
+        String json = signed("{\"app\":\"ranobe\",\"type\":\"library\",\"version\":1,\"novels\":["
                 + "{\"name\":\"no url\"},"
                 + "{\"url\":\"\"},"
                 + "{\"url\":null},"
                 + "\"just a string\","
                 + "42,"
-                + "{\"url\":\"https://example.org/ok\",\"name\":\"ok\"}]}";
+                + "{\"url\":\"https://example.org/ok\",\"name\":\"ok\"}]}");
 
         BackupCodec.Parsed<Novel> parsed = BackupCodec.parseLibrary(json);
 
@@ -174,9 +183,9 @@ public class BackupCodecTest {
 
     @Test
     public void library_jsonNullIsNullNotTheWordNull() throws Exception {
-        String json = "{\"app\":\"ranobe\",\"type\":\"library\",\"version\":1,"
+        String json = signed("{\"app\":\"ranobe\",\"type\":\"library\",\"version\":1,"
                 + "\"novels\":[{\"url\":\"https://example.org/x\",\"name\":null,\"summary\":null,"
-                + "\"authors\":[null,\"A\"]}]}";
+                + "\"authors\":[null,\"A\"]}]}");
 
         Novel novel = BackupCodec.parseLibrary(json).items.get(0);
 
@@ -188,9 +197,9 @@ public class BackupCodecTest {
     @Test
     public void library_listItemsAreTidied() throws Exception {
         // the database stores a list as tab-separated text, so a tab inside a name would split it
-        String json = "{\"app\":\"ranobe\",\"type\":\"library\",\"version\":1,"
+        String json = signed("{\"app\":\"ranobe\",\"type\":\"library\",\"version\":1,"
                 + "\"novels\":[{\"url\":\"https://example.org/x\","
-                + "\"genres\":[\" Fantasy \",\"\",\"   \",\"Sci\\tFi\"]}]}";
+                + "\"genres\":[\" Fantasy \",\"\",\"   \",\"Sci\\tFi\"]}]}");
 
         Novel novel = BackupCodec.parseLibrary(json).items.get(0);
 
@@ -199,8 +208,8 @@ public class BackupCodecTest {
 
     @Test
     public void library_missingNumbersDefaultToZero() throws Exception {
-        String json = "{\"app\":\"ranobe\",\"type\":\"library\",\"version\":1,"
-                + "\"novels\":[{\"url\":\"https://example.org/x\"}]}";
+        String json = signed("{\"app\":\"ranobe\",\"type\":\"library\",\"version\":1,"
+                + "\"novels\":[{\"url\":\"https://example.org/x\"}]}");
 
         Novel novel = BackupCodec.parseLibrary(json).items.get(0);
 
@@ -248,10 +257,10 @@ public class BackupCodecTest {
 
     @Test
     public void history_entriesNeedBothTheChapterAndTheNovel() throws Exception {
-        String json = "{\"app\":\"ranobe\",\"type\":\"history\",\"version\":1,\"entries\":["
+        String json = signed("{\"app\":\"ranobe\",\"type\":\"history\",\"version\":1,\"entries\":["
                 + "{\"url\":\"https://example.org/c1\"},"
                 + "{\"novelUrl\":\"https://example.org/n\"},"
-                + "{\"url\":\"https://example.org/c2\",\"novelUrl\":\"https://example.org/n\"}]}";
+                + "{\"url\":\"https://example.org/c2\",\"novelUrl\":\"https://example.org/n\"}]}");
 
         BackupCodec.Parsed<ReadHistory> parsed = BackupCodec.parseHistory(json);
 
@@ -271,37 +280,37 @@ public class BackupCodecTest {
     }
 
     @Test
-    public void header_jsonFromAnotherAppIsNotABackup() {
+    public void header_jsonFromAnotherAppIsNotABackup() throws Exception {
         assertEquals(BackupCodec.BackupException.Reason.NOT_BACKUP,
-                reasonOfLibrary("{\"app\":\"mihon\",\"type\":\"library\",\"version\":1,\"novels\":[]}"));
+                reasonOfLibrary(signed("{\"app\":\"mihon\",\"type\":\"library\",\"version\":1,\"novels\":[]}")));
         assertEquals(BackupCodec.BackupException.Reason.NOT_BACKUP,
-                reasonOfLibrary("{\"novels\":[]}"));
+                reasonOfLibrary(signed("{\"novels\":[]}")));
     }
 
     @Test
-    public void header_missingOrUnknownTypeIsNotABackup() {
+    public void header_missingOrUnknownTypeIsNotABackup() throws Exception {
         assertEquals(BackupCodec.BackupException.Reason.NOT_BACKUP,
-                reasonOfLibrary("{\"app\":\"ranobe\",\"version\":1,\"novels\":[]}"));
+                reasonOfLibrary(signed("{\"app\":\"ranobe\",\"version\":1,\"novels\":[]}")));
         assertEquals(BackupCodec.BackupException.Reason.NOT_BACKUP,
-                reasonOfLibrary("{\"app\":\"ranobe\",\"type\":\"settings\",\"version\":1,\"novels\":[]}"));
+                reasonOfLibrary(signed("{\"app\":\"ranobe\",\"type\":\"settings\",\"version\":1,\"novels\":[]}")));
     }
 
     @Test
-    public void header_missingVersionIsNotABackup() {
+    public void header_missingVersionIsNotABackup() throws Exception {
         assertEquals(BackupCodec.BackupException.Reason.NOT_BACKUP,
-                reasonOfLibrary("{\"app\":\"ranobe\",\"type\":\"library\",\"novels\":[]}"));
+                reasonOfLibrary(signed("{\"app\":\"ranobe\",\"type\":\"library\",\"novels\":[]}")));
     }
 
     @Test
-    public void header_aNewerVersionIsRefusedAsSuch() {
+    public void header_aNewerVersionIsRefusedAsSuch() throws Exception {
         assertEquals(BackupCodec.BackupException.Reason.NEWER_VERSION,
-                reasonOfLibrary("{\"app\":\"ranobe\",\"type\":\"library\",\"version\":99,\"novels\":[]}"));
+                reasonOfLibrary(signed("{\"app\":\"ranobe\",\"type\":\"library\",\"version\":99,\"novels\":[]}")));
     }
 
     @Test
-    public void header_aMissingEntryListIsNotABackup() {
+    public void header_aMissingEntryListIsNotABackup() throws Exception {
         assertEquals(BackupCodec.BackupException.Reason.NOT_BACKUP,
-                reasonOfLibrary("{\"app\":\"ranobe\",\"type\":\"library\",\"version\":1}"));
+                reasonOfLibrary(signed("{\"app\":\"ranobe\",\"type\":\"library\",\"version\":1}")));
     }
 
     @Test
@@ -321,6 +330,228 @@ public class BackupCodecTest {
             assertEquals(BackupCodec.BackupException.Reason.WRONG_TYPE, e.reason);
             assertEquals(BackupCodec.TYPE_HISTORY, e.foundType);
         }
+    }
+
+    // ---- who made the file ----
+
+    private static String libraryExport() throws Exception {
+        return BackupCodec.libraryToJson(Collections.singletonList(novel("https://example.org/a")), 1760000000000L);
+    }
+
+    private static String historyExport() throws Exception {
+        return BackupCodec.historyToJson(
+                Collections.singletonList(entry("https://example.org/c", "https://example.org/n", 1L)), 1760000000000L);
+    }
+
+    private static void assertRefusedAsLibrary(String text) {
+        assertEquals(BackupCodec.BackupException.Reason.NOT_BACKUP, reasonOfLibrary(text));
+    }
+
+    @Test
+    public void signature_everyExportCarriesOne() throws Exception {
+        assertTrue(libraryExport().contains("\"signature\""));
+        assertTrue(historyExport().contains("\"signature\""));
+    }
+
+    @Test
+    public void signature_anExportStillReadsAfterBeingReLaidOut() throws Exception {
+        // layout and key order aren't signed
+        String compact = new JSONObject(libraryExport()).toString();
+
+        assertEquals(1, BackupCodec.parseLibrary(compact).items.size());
+        assertEquals(1, BackupCodec.parseHistory(new JSONObject(historyExport()).toString(4)).items.size());
+    }
+
+    @Test
+    public void signature_aWellFormedFileWithoutOneIsRefused() throws Exception {
+        // an export minus its signature
+        JSONObject root = new JSONObject(libraryExport());
+        root.remove("signature");
+
+        assertRefusedAsLibrary(root.toString());
+    }
+
+    @Test
+    public void signature_aWrongOneIsRefused() throws Exception {
+        JSONObject root = new JSONObject(libraryExport());
+        root.put("signature", "0000000000000000000000000000000000000000000000000000000000000000");
+        assertRefusedAsLibrary(root.toString());
+
+        root.put("signature", 12345);
+        assertRefusedAsLibrary(root.toString());
+
+        root.put("signature", "");
+        assertRefusedAsLibrary(root.toString());
+    }
+
+    @Test
+    public void signature_anEntryEditedAfterExportIsRefused() throws Exception {
+        String json = libraryExport();
+        String edited = json.replace("Lord of the Mysteries", "Lord of the Mysterie");
+        assertNotEquals(json, edited);
+
+        assertRefusedAsLibrary(edited);
+    }
+
+    @Test
+    public void signature_anEntryAddedAfterExportIsRefused() throws Exception {
+        JSONObject root = new JSONObject(libraryExport());
+        root.getJSONArray("novels").put(new JSONObject().put("url", "https://example.org/injected"));
+
+        assertRefusedAsLibrary(root.toString());
+    }
+
+    @Test
+    public void signature_anEntryRemovedAfterExportIsRefused() throws Exception {
+        JSONObject root = new JSONObject(BackupCodec.libraryToJson(
+                Arrays.asList(novel("https://example.org/a"), novel("https://example.org/b")), 1L));
+        root.getJSONArray("novels").remove(1);
+
+        assertRefusedAsLibrary(root.toString());
+    }
+
+    @Test
+    public void signature_theHeaderIsSignedToo() throws Exception {
+        JSONObject root = new JSONObject(libraryExport());
+        root.put("exportedAt", 1L);
+        assertRefusedAsLibrary(root.toString());
+
+        root = new JSONObject(libraryExport());
+        root.put("count", 99);
+        assertRefusedAsLibrary(root.toString());
+    }
+
+    @Test
+    public void signature_aBackupRelabelledAsTheOtherKindIsRefusedAsForged() throws Exception {
+        // genuine files get WRONG_TYPE; an edited type is just refused
+        JSONObject root = new JSONObject(libraryExport());
+        root.put("type", BackupCodec.TYPE_HISTORY);
+
+        try {
+            BackupCodec.parseHistory(root.toString());
+            fail("a relabelled file was accepted");
+        } catch (BackupCodec.BackupException e) {
+            assertEquals(BackupCodec.BackupException.Reason.NOT_BACKUP, e.reason);
+        }
+    }
+
+    @Test
+    public void signature_aSignedFileFromAnotherAppIsStillRefused() throws Exception {
+        JSONObject root = new JSONObject("{\"app\":\"mihon\",\"type\":\"library\",\"version\":1,\"novels\":[]}");
+        root.put("signature", BackupCodec.signatureOf(root));
+
+        assertRefusedAsLibrary(root.toString());
+    }
+
+    // ---- nesting and loose syntax ----
+
+    private static String repeat(char c, int times) {
+        char[] chars = new char[times];
+        Arrays.fill(chars, c);
+        return new String(chars);
+    }
+
+    // right header, entry list nested 'depth' deep
+    private static String nestedFile(int depth) {
+        return "{\"app\":\"ranobe\",\"type\":\"library\",\"version\":1,\"novels\":"
+                + repeat('[', depth) + repeat(']', depth) + "}";
+    }
+
+    @Test
+    public void nesting_aFileOfNothingButBracketsIsRefusedWithoutOverflowingTheStack() {
+        assertRefusedAsLibrary(nestedFile(200_000));
+        assertRefusedAsLibrary(repeat('[', 1_000_000));
+    }
+
+    @Test
+    public void nesting_theLimitIsSixteenLevels() {
+        assertTrue(BackupCodec.isPlainJsonWithinDepth(repeat('[', 16) + repeat(']', 16)));
+        assertFalse(BackupCodec.isPlainJsonWithinDepth(repeat('[', 17) + repeat(']', 17)));
+        assertTrue(BackupCodec.isPlainJsonWithinDepth("{\"a\":" + repeat('[', 15) + repeat(']', 15) + "}"));
+        assertFalse(BackupCodec.isPlainJsonWithinDepth("{\"a\":" + repeat('[', 16) + repeat(']', 16) + "}"));
+    }
+
+    @Test
+    public void nesting_everyExportPassesTheCheck() throws Exception {
+        assertTrue(BackupCodec.isPlainJsonWithinDepth(libraryExport()));
+        assertTrue(BackupCodec.isPlainJsonWithinDepth(historyExport()));
+        assertTrue(BackupCodec.isPlainJsonWithinDepth(new JSONObject(libraryExport()).toString()));
+        assertTrue(BackupCodec.isPlainJsonWithinDepth(
+                BackupCodec.libraryToJson(new ArrayList<Novel>(), 1L)));
+    }
+
+    @Test
+    public void nesting_bracketsAndQuotesInsideStringsDoNotCount() {
+        assertTrue(BackupCodec.isPlainJsonWithinDepth(
+                "{\"a\":\"" + repeat('[', 40) + " \\\" " + repeat('{', 40) + "\",\"b\":[1]}"));
+        // an escaped backslash doesn't escape the next quote
+        assertTrue(BackupCodec.isPlainJsonWithinDepth("{\"a\":\"\\\\\"}"));
+        assertTrue(BackupCodec.isPlainJsonWithinDepth("[\"a \\\\\",[1]]"));
+    }
+
+    @Test
+    public void nesting_aStringThatNeverEndsOrBracketsThatDontBalanceAreRefused() {
+        assertFalse(BackupCodec.isPlainJsonWithinDepth("{\"a\":\"never closed}"));
+        assertFalse(BackupCodec.isPlainJsonWithinDepth("{\"a\":\"ends on a backslash\\"));
+        assertFalse(BackupCodec.isPlainJsonWithinDepth("[[1]"));
+        assertFalse(BackupCodec.isPlainJsonWithinDepth("[1]]"));
+        assertFalse(BackupCodec.isPlainJsonWithinDepth("}{"));
+    }
+
+    @Test
+    public void nesting_looseSyntaxThatCouldHideBracketsIsRefused() {
+        // org.json reads these; a plain bracket count could be fooled
+        assertFalse(BackupCodec.isPlainJsonWithinDepth("{'a':'" + repeat('[', 30) + "'}"));
+        assertFalse(BackupCodec.isPlainJsonWithinDepth("{\"a\":1 /* \" */,\"b\":" + repeat('[', 30) + "}"));
+        assertFalse(BackupCodec.isPlainJsonWithinDepth("{\"a\":1 // \"\n,\"b\":" + repeat('[', 30) + "}"));
+        assertFalse(BackupCodec.isPlainJsonWithinDepth("{\"a\":1 # \"\n,\"b\":" + repeat('[', 30) + "}"));
+        assertFalse(BackupCodec.isPlainJsonWithinDepth("{\"a\";1,\"b\"=2}"));
+        // unquoted word holding a quote, then too many brackets, then a closing quote
+        assertFalse(BackupCodec.isPlainJsonWithinDepth("[abc\"," + repeat('[', 100) + "\"]"));
+        assertFalse(BackupCodec.isPlainJsonWithinDepth("[12\"," + repeat('[', 100) + "\"]"));
+        assertFalse(BackupCodec.isPlainJsonWithinDepth("[true\"," + repeat('[', 100) + "\"]"));
+    }
+
+    @Test
+    public void nesting_numbersAndLiteralsNeedASeparatorAfterThem() {
+        assertTrue(BackupCodec.isPlainJsonWithinDepth("[true,false,null,-1.5e+3,0,12]"));
+        assertTrue(BackupCodec.isPlainJsonWithinDepth("{\"a\": 1,\n \"b\": null }"));
+        assertFalse(BackupCodec.isPlainJsonWithinDepth("[nulls]"));
+        assertFalse(BackupCodec.isPlainJsonWithinDepth("[truex]"));
+        assertFalse(BackupCodec.isPlainJsonWithinDepth("[1x]"));
+        assertFalse(BackupCodec.isPlainJsonWithinDepth("hello"));
+    }
+
+    @Test
+    public void nesting_aLooseFileIsNotABackupEvenWithTheRightContents() throws Exception {
+        // an export with a comment added is refused
+        String commented = libraryExport().replace("{\n", "{ // note\n");
+        assertNotEquals(libraryExport(), commented);
+
+        assertRefusedAsLibrary(commented);
+    }
+
+    // ---- the file name ----
+
+    @Test
+    public void jsonExtension_acceptsJsonNamesInAnyCase() {
+        assertTrue(BackupCodec.hasJsonExtension("ranobe-library-2026-11-04.json"));
+        assertTrue(BackupCodec.hasJsonExtension("ranobe-library-2026-11-04 (1).json"));
+        assertTrue(BackupCodec.hasJsonExtension("BACKUP.JSON"));
+        assertTrue(BackupCodec.hasJsonExtension("backup.Json "));
+        assertTrue(BackupCodec.hasJsonExtension("primary:Download/backup.json"));
+    }
+
+    @Test
+    public void jsonExtension_refusesEverythingElse() {
+        assertFalse(BackupCodec.hasJsonExtension(null));
+        assertFalse(BackupCodec.hasJsonExtension(""));
+        assertFalse(BackupCodec.hasJsonExtension(".json"));
+        assertFalse(BackupCodec.hasJsonExtension("backup.txt"));
+        assertFalse(BackupCodec.hasJsonExtension("backup.json.txt"));
+        assertFalse(BackupCodec.hasJsonExtension("backup.jsonl"));
+        assertFalse(BackupCodec.hasJsonExtension("backupjson"));
+        assertFalse(BackupCodec.hasJsonExtension("backup.json.zip"));
     }
 
     // ---- reading the file ----

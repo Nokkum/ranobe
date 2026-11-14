@@ -1,7 +1,9 @@
 package org.ranobe.ranobe.util;
 
 import android.content.ContentResolver;
+import android.database.Cursor;
 import android.net.Uri;
+import android.provider.OpenableColumns;
 
 import org.ranobe.ranobe.database.RanobeDatabase;
 import org.ranobe.ranobe.models.Novel;
@@ -21,7 +23,8 @@ import java.util.Set;
 
 // Exports and imports the library bookmarks and the reading history as JSON files (see BackupCodec for the
 // format, BackupMerge for what an import does). The work is blocking, so call it off the main thread. It never
-// throws: whatever goes wrong comes back as the Result's problem.
+// throws: whatever goes wrong comes back as the Result's problem. Imports take only a *.json file that
+// Export wrote and nobody changed.
 public final class BackupManager {
     private BackupManager() {
     }
@@ -32,6 +35,9 @@ public final class BackupManager {
         NONE,
         READ_FAILED,
         WRITE_FAILED,
+        // not named *.json
+        NOT_JSON,
+        // not an unchanged Export file
         NOT_BACKUP,
         // the file is a backup, but of the other kind than the one being imported
         FILE_IS_LIBRARY_BACKUP,
@@ -134,6 +140,7 @@ public final class BackupManager {
     // ---- import ----
 
     private static Result importLibrary(ContentResolver resolver, Uri uri) {
+        if (!isJsonFile(resolver, uri)) return Result.failed(Kind.IMPORT_LIBRARY, Problem.NOT_JSON);
         final List<Novel> incoming;
         final int invalid;
         try {
@@ -163,6 +170,7 @@ public final class BackupManager {
     }
 
     private static Result importHistory(ContentResolver resolver, Uri uri) {
+        if (!isJsonFile(resolver, uri)) return Result.failed(Kind.IMPORT_HISTORY, Problem.NOT_JSON);
         final List<ReadHistory> incoming;
         final int invalid;
         try {
@@ -188,6 +196,21 @@ public final class BackupManager {
         } catch (RuntimeException e) {
             return Result.failed(Kind.IMPORT_HISTORY, Problem.FAILED);
         }
+    }
+
+    // The picker's JSON filter is only a request, so check the name here too. No name means refused.
+    private static boolean isJsonFile(ContentResolver resolver, Uri uri) {
+        String name = null;
+        try (Cursor cursor = resolver.query(uri, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                if (column >= 0 && !cursor.isNull(column)) name = cursor.getString(column);
+            }
+        } catch (RuntimeException ignored) {
+            // use the uri's name instead
+        }
+        if (name == null) name = uri.getLastPathSegment();
+        return BackupCodec.hasJsonExtension(name);
     }
 
     private static String read(ContentResolver resolver, Uri uri) throws IOException, BackupCodec.BackupException {

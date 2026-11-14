@@ -18,6 +18,13 @@
             android:layout_height="wrap_content"
             android:text="@string/export_all_chapters" />
 
+        <!-- the label gets the number of downloaded chapters once it is known, and the choice is off when there are none -->
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/scope_downloaded"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/export_downloaded_chapters" />
+
         <com.google.android.material.radiobutton.MaterialRadioButton
             android:id="@+id/scope_range"
             android:layout_width="match_parent"

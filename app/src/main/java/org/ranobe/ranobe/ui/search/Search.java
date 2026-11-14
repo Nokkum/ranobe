@@ -53,6 +53,9 @@ public class Search extends Fragment implements NovelAdapter.OnNovelItemClickLis
     private static final int NO_SOURCE = Integer.MIN_VALUE;
     // search while typing: starts as soon as this many letters are typed, and not for one or two
     private static final int LIVE_MIN_CHARS = 3;
+    // While letters are being deleted nothing is searched or reset; the search for what is left starts once
+    // the deleting has stopped for this long
+    private static final long DELETE_PAUSE_MS = 600;
 
     private final List<SearchViewModel.Row> rows = new ArrayList<>();
     private FragmentSearchBinding binding;
@@ -61,6 +64,10 @@ public class Search extends Fragment implements NovelAdapter.OnNovelItemClickLis
     private OptionSection sourcesSection;
     private OptionSection chaptersSection;
     private OptionSection statusSection;
+    // the length of the field's text after its last change, to tell deleting from typing
+    private int typedLength;
+    // the search that waits for the deleting to stop (see DELETE_PAUSE_MS)
+    private final Runnable searchAfterDeleting = this::searchWhenDeletingStopped;
 
     public Search() {
         // Required empty public constructor
@@ -82,6 +89,7 @@ public class Search extends Fragment implements NovelAdapter.OnNovelItemClickLis
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        typedLength = 0;
         binding.searchView.setEndIconOnClickListener(v -> searchNovels());
         binding.searchField.setOnEditorActionListener((v, actionId, event) -> {
             boolean enter = event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER;
@@ -105,11 +113,20 @@ public class Search extends Fragment implements NovelAdapter.OnNovelItemClickLis
             public void afterTextChanged(Editable s) {
                 updateRecentVisibility();
                 String typed = s == null ? "" : s.toString().trim();
+                int length = s == null ? 0 : s.length();
+                boolean deleted = length < typedLength;
+                typedLength = length;
+                // every change starts over: a search that was waiting for the deleting to stop is either
+                // replaced by this one or no longer wanted
+                cancelSearchAfterDeleting();
                 if (typed.isEmpty()) {
                     // the field was emptied: the results of the old search go too
                     viewModel.clear();
                 } else if (typed.length() >= LIVE_MIN_CHARS && SearchPreferences.isLiveSearch(requireContext())) {
-                    viewModel.search(s.toString());
+                    // A letter deleted does not search, and so does not reset the results, until the deleting
+                    // has stopped. Typing still searches at once.
+                    if (deleted) binding.searchField.postDelayed(searchAfterDeleting, DELETE_PAUSE_MS);
+                    else viewModel.search(s.toString());
                 }
             }
         });
@@ -133,6 +150,7 @@ public class Search extends Fragment implements NovelAdapter.OnNovelItemClickLis
     }
 
     private void searchNovels() {
+        cancelSearchAfterDeleting();
         CharSequence text = binding.searchField.getText();
         if (text == null || text.toString().trim().isEmpty()) return;
         binding.searchField.clearFocus();
@@ -140,6 +158,20 @@ public class Search extends Fragment implements NovelAdapter.OnNovelItemClickLis
         if (imm != null) imm.hideSoftInputFromWindow(binding.searchField.getWindowToken(), 0);
         showRecent(SearchHistory.add(requireContext(), text.toString()));
         viewModel.search(text.toString());
+    }
+
+    private void cancelSearchAfterDeleting() {
+        if (binding != null) binding.searchField.removeCallbacks(searchAfterDeleting);
+    }
+
+    // The deleting stopped: search for what is left, if it still calls for a live search.
+    private void searchWhenDeletingStopped() {
+        if (binding == null || !isAdded()) return;
+        CharSequence text = binding.searchField.getText();
+        String typed = text == null ? "" : text.toString();
+        if (typed.trim().length() >= LIVE_MIN_CHARS && SearchPreferences.isLiveSearch(requireContext())) {
+            viewModel.search(typed);
+        }
     }
 
     // option chips: sources, chapters, status
@@ -377,6 +409,7 @@ public class Search extends Fragment implements NovelAdapter.OnNovelItemClickLis
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        cancelSearchAfterDeleting();
         binding = null;
     }
 

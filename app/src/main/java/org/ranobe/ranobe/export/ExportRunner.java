@@ -8,6 +8,7 @@ import android.net.Uri;
 import org.ranobe.ranobe.R;
 import org.ranobe.ranobe.database.RanobeDatabase;
 import org.ranobe.ranobe.models.Chapter;
+import org.ranobe.ranobe.models.DownloadedChapter;
 import org.ranobe.ranobe.models.Lang;
 import org.ranobe.ranobe.network.HttpClient;
 import org.ranobe.ranobe.sources.Source;
@@ -223,7 +224,27 @@ class ExportRunner {
         }
     }
 
+    // "All downloaded chapters": the list is what the database holds, and nothing needs the source
+    private void listDownloadedChapters() throws Exception {
+        job.phase = ExportJob.Phase.CHAPTERS;
+        listener.onChanged(job);
+        List<ExportJob.Item> picked = new ArrayList<>();
+        for (DownloadedChapter c : RanobeDatabase.database().chapters().getDownloadedChapters(job.novel.url)) {
+            picked.add(new ExportJob.Item(c.url, c.name, c.id));
+        }
+        if (picked.isEmpty()) throw new FatalException(context.getString(R.string.export_no_downloaded_chapters));
+        synchronized (job.chapters) {
+            job.chapters.clear();
+            job.chapters.addAll(picked);
+        }
+        listener.onChanged(job);
+    }
+
     private void fetchChapters() throws Exception {
+        if (job.downloadedOnly) {
+            listDownloadedChapters();
+            return;
+        }
         job.phase = ExportJob.Phase.CHAPTERS;
         listener.onChanged(job);
         List<Chapter> all = withRetries(() -> {
@@ -276,6 +297,10 @@ class ExportRunner {
 
     private void fetchChapter(int position, ExportJob.Item item) throws Exception {
         String content = offlineContent(item);
+        if (content == null && job.downloadedOnly) {
+            // deleted since the list was made; this export never goes to the source for text
+            throw new IOException(context.getString(R.string.export_empty_chapter));
+        }
         if (content == null) {
             content = withRetries(() -> {
                 Chapter result = source.chapter(item.toChapter(job.novel));

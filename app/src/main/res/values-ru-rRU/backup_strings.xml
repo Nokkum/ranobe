@@ -32,7 +32,8 @@
     <string name="backup_problem_title">Не удалось завершить</string>
     <string name="backup_error_read">Не удалось прочитать файл.</string>
     <string name="backup_error_write">Не удалось сохранить файл здесь. Выберите другое место и повторите попытку.</string>
-    <string name="backup_error_not_backup">Это не файл резервной копии Ranobe.</string>
+    <string name="backup_error_not_json">Можно импортировать только файлы .json. Выберите файл, созданный через «Экспорт» в Ranobe.</string>
+    <string name="backup_error_not_backup">Этот файл не был экспортирован из Ranobe либо был изменён или повреждён. Можно импортировать только неизменённые файлы, созданные через «Экспорт».</string>
     <string name="backup_error_is_library">Это резервная копия закладок библиотеки. Импортируйте её в разделе «Закладки библиотеки».</string>
     <string name="backup_error_is_history">Это резервная копия истории чтения. Импортируйте её в разделе «История чтения».</string>
     <string name="backup_error_newer">Эта копия создана более новой версией приложения. Обновите приложение, чтобы импортировать её.</string>

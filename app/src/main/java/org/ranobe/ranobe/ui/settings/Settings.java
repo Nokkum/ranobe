@@ -17,6 +17,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.StringRes;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
@@ -25,15 +26,17 @@ import androidx.lifecycle.ViewModelProvider;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.snackbar.Snackbar;
 
-import org.ranobe.ranobe.BuildConfig;
 import org.ranobe.ranobe.R;
 import org.ranobe.ranobe.config.Ranobe;
 import org.ranobe.ranobe.databinding.FragmentSettingsBinding;
 import org.ranobe.ranobe.network.repository.GithubRepo;
+import org.ranobe.ranobe.network.HttpClient;
+import org.ranobe.ranobe.network.WebnovelSession;
 import org.ranobe.ranobe.network.WtrLabSession;
 import org.ranobe.ranobe.sources.en.WtrLab;
 import org.ranobe.ranobe.ui.downloads.DownloadsActivity;
 import org.ranobe.ranobe.ui.settings.viewmodel.SettingsViewModel;
+import org.ranobe.ranobe.ui.webview.WebViewActivity;
 import org.ranobe.ranobe.util.BackupManager;
 import org.ranobe.ranobe.util.SearchPreferences;
 import org.ranobe.ranobe.util.SearchTimeouts;
@@ -43,9 +46,22 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-public class Settings extends Fragment {
+public class Settings extends Fragment implements AccountOptions.Listener {
+    // which account an options sheet was opened for
+    private static final String ACCOUNT_WTR_LAB = "wtr_lab";
+    private static final String ACCOUNT_WEBNOVEL = "webnovel";
 
     private FragmentSettingsBinding binding;
+    // what WTR-LAB last said about the session: true or false, null when it couldn't be asked
+    private Boolean wtrLabSignedIn = null;
+    // the account row's subtitle, repeated on top of the options sheet
+    private String wtrLabStatusText = "";
+    // Webnovel's sign-in is read from the WebView's cookies, so it is always known
+    private boolean webnovelSignedIn = false;
+    private String webnovelStatusText = "";
+    // the site's own pages (sign in, browse); the sign-in shows once the user is back
+    private final ActivityResultLauncher<WebViewActivity.Page> webnovelLauncher =
+            registerForActivityResult(new WebViewActivity.Browse(), done -> refreshWebnovelStatus());
     private SettingsViewModel viewModel;
     private ActivityResultLauncher<String> notificationPermissionLauncher;
     // the file picker for each backup action; each one knows what to do with the file it returns
@@ -90,7 +106,6 @@ public class Settings extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        binding.appVersion.setText(BuildConfig.VERSION_NAME);
 
         // the row only labels the segmented control below it
         binding.themeModeOption.setClickable(false);
@@ -108,9 +123,10 @@ public class Settings extends Fragment {
             binding.downloadsOption.setOnClickListener(v -> startActivity(new Intent(requireContext(), DownloadsActivity.class)));
         }
         syncChapterUpdatesToggle();
-        binding.wtrLabAccountOption.setOnClickListener(v ->
-                startActivity(new Intent(requireContext(), WtrLabSignInActivity.class)));
-        binding.wtrLabSignOutOption.setOnClickListener(v -> confirmWtrLabSignOut());
+        binding.wtrLabAccountOption.setOnClickListener(v -> onWtrLabAccountClick());
+        if (binding.webnovelAccountOption != null) {
+            binding.webnovelAccountOption.setOnClickListener(v -> onWebnovelAccountClick());
+        }
 
         boolean volumeScrollEnabled = Ranobe.isVolumeKeyScrollEnabled();
         binding.volumeScrollOption.setChecked(volumeScrollEnabled);
@@ -158,6 +174,7 @@ public class Settings extends Fragment {
         binding.scrollSpeedSetting.speedSlider.setValue(speed);
         binding.scrollSpeedSetting.speedLabel.setText(Ranobe.getSpeedLabel(requireContext(), speed));
         refreshWtrLabStatus();
+        refreshWebnovelStatus();
     }
 
     // How long Search waits, with nothing found, before it shows "No Results Found": one of four values.
@@ -229,12 +246,13 @@ public class Settings extends Fragment {
         launchPicker(picker, intent);
     }
 
-    // Any file may be chosen: file managers label a .json file in different ways, and the content is checked
-    // before anything is imported.
+    // JSON files only; BackupManager and BackupCodec re-check, since a file manager may ignore the filter.
     private void pickImportFile(ActivityResultLauncher<Intent> picker) {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT)
                 .addCategory(Intent.CATEGORY_OPENABLE)
-                .setType("*/*");
+                // "*/*" is required with EXTRA_MIME_TYPES
+                .setType("*/*")
+                .putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"application/json", "text/json"});
         launchPicker(picker, intent);
     }
 
@@ -284,6 +302,8 @@ public class Settings extends Fragment {
                 return R.string.backup_error_read;
             case WRITE_FAILED:
                 return R.string.backup_error_write;
+            case NOT_JSON:
+                return R.string.backup_error_not_json;
             case NOT_BACKUP:
                 return R.string.backup_error_not_backup;
             case FILE_IS_LIBRARY_BACKUP:
@@ -299,6 +319,79 @@ public class Settings extends Fragment {
         }
     }
 
+    // Signed out: the only thing to do is sign in, so go straight to the site. Signed in (or not sure, the check
+    // may have failed): offer the site and signing out.
+    private void onWtrLabAccountClick() {
+        if (Boolean.FALSE.equals(wtrLabSignedIn)) {
+            openWtrLab();
+        } else {
+            AccountOptions.newInstance(ACCOUNT_WTR_LAB, R.string.wtr_lab_account, wtrLabStatusText,
+                    R.string.wtr_lab_open_webview, R.string.wtr_lab_open_webview_sub,
+                    R.string.wtr_lab_sign_out, R.string.wtr_lab_sign_out_sub
+            ).show(getChildFragmentManager(), AccountOptions.TAG);
+        }
+    }
+
+    private void openWtrLab() {
+        startActivity(new Intent(requireContext(), WtrLabSignInActivity.class));
+    }
+
+    @Override
+    public void onOpenAccount(String account) {
+        if (ACCOUNT_WEBNOVEL.equals(account)) openWebnovelPage(WebnovelSession.HOME_URL, R.string.webnovel_browse_title, false);
+        else openWtrLab();
+    }
+
+    @Override
+    public void onSignOutOfAccount(String account) {
+        if (ACCOUNT_WEBNOVEL.equals(account)) confirmWebnovelSignOut();
+        else confirmWtrLabSignOut();
+    }
+
+    // Signed out: the only thing to do is sign in, so go straight to the site's sign-in page. Signed in: offer the
+    // site and signing out.
+    private void onWebnovelAccountClick() {
+        if (!webnovelSignedIn) {
+            openWebnovelPage(WebnovelSession.LOGIN_URL, R.string.webnovel_sign_in_title, true);
+        } else {
+            AccountOptions.newInstance(ACCOUNT_WEBNOVEL, R.string.webnovel_account, webnovelStatusText,
+                    R.string.webnovel_open_webview, R.string.webnovel_open_webview_sub,
+                    R.string.webnovel_sign_out, R.string.webnovel_sign_out_sub
+            ).show(getChildFragmentManager(), AccountOptions.TAG);
+        }
+    }
+
+    // shown to Webnovel the way the source's own requests show themselves, so what the site grants one counts for both
+    // The sign-in page closes itself once the sign-in has succeeded (and only then); the page opened for a signed-in user
+    // is there to be used and stays until the user is done.
+    private void openWebnovelPage(String url, @StringRes int title, boolean closeOnSignIn) {
+        WebViewActivity.Page page = new WebViewActivity.Page(url, getString(title), HttpClient.desktopUserAgent());
+        if (closeOnSignIn) page.closeOnSignIn(WebnovelSession.identityCookieNames(), WebnovelSession.cookieUrls());
+        webnovelLauncher.launch(page);
+    }
+
+    private void confirmWebnovelSignOut() {
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.webnovel_sign_out_title)
+                .setMessage(R.string.webnovel_sign_out_message)
+                .setPositiveButton(R.string.wtr_lab_sign_out_confirm, (dialog, i) -> {
+                    WebnovelSession.clearLocal();
+                    refreshWebnovelStatus();
+                    if (binding != null) {
+                        Snackbar.make(binding.getRoot(), R.string.webnovel_signed_out, Snackbar.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton(R.string.cancel, (dialog, i) -> dialog.dismiss())
+                .show();
+    }
+
+    private void refreshWebnovelStatus() {
+        if (binding == null || binding.webnovelAccountOption == null) return;
+        webnovelSignedIn = WebnovelSession.isSignedIn();
+        webnovelStatusText = getString(webnovelSignedIn ? R.string.webnovel_status_signed_in : R.string.webnovel_status_signed_out);
+        binding.webnovelAccountOption.setSubtitle(webnovelStatusText);
+    }
+
     private void confirmWtrLabSignOut() {
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle(R.string.wtr_lab_sign_out_title)
@@ -309,14 +402,12 @@ public class Settings extends Fragment {
     }
 
     private void signOutOfWtrLab() {
-        binding.wtrLabSignOutOption.setEnabled(false);
         new Thread(() -> {
             WtrLab.endSessionOnServer();
             if (getActivity() == null) return;
             getActivity().runOnUiThread(() -> {
                 WtrLabSession.clearLocal();
                 if (binding == null || !isAdded()) return;
-                binding.wtrLabSignOutOption.setEnabled(true);
                 Snackbar.make(binding.getRoot(), R.string.wtr_lab_signed_out, Snackbar.LENGTH_SHORT).show();
                 refreshWtrLabStatus();
             });
@@ -341,9 +432,8 @@ public class Settings extends Fragment {
                     text = getString(R.string.wtr_lab_status_signed_in_as, status.name);
                 }
                 binding.wtrLabAccountOption.setSubtitle(text);
-                // Only hide the button when the server clearly says we are signed out.
-                binding.wtrLabSignOutOption.setVisibility(
-                        Boolean.FALSE.equals(status.signedIn) ? View.GONE : View.VISIBLE);
+                wtrLabSignedIn = status.signedIn;
+                wtrLabStatusText = text;
             });
         }).start();
     }

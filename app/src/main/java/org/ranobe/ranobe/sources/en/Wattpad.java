@@ -10,7 +10,9 @@ import org.ranobe.ranobe.models.Filter;
 import org.ranobe.ranobe.models.Lang;
 import org.ranobe.ranobe.models.Novel;
 import org.ranobe.ranobe.network.HttpClient;
+import org.ranobe.ranobe.sources.AuthorSearch;
 import org.ranobe.ranobe.sources.Source;
+import org.ranobe.ranobe.util.AuthorNames;
 import org.ranobe.ranobe.util.NumberUtils;
 
 import java.net.URLEncoder;
@@ -25,7 +27,7 @@ import java.util.regex.Pattern;
  * Wattpad through its public api (api.wattpad.com), which unlike the website isn't behind
  * Cloudflare. Novels are stored with their website url, www.wattpad.com/story/{id}.
  */
-public class Wattpad implements Source {
+public class Wattpad implements Source, AuthorSearch {
     public static final int SOURCE_ID = 23;
     private static final String SITE = "https://www.wattpad.com";
     private static final String API = "https://api.wattpad.com";
@@ -168,5 +170,15 @@ public class Wattpad implements Source {
             items.add(novel);
         }
         return items;
+    }
+
+    // The name shown as the author is the user name, whose profile is wattpad.com/user/{name}; the api lists
+    // that user's stories.
+    @Override
+    public List<Novel> authorWorks(String author, int page) throws Exception {
+        String url = API + "/api/v3/users/" + AuthorNames.encodePath(author) + "/stories?limit=" + PAGE_SIZE
+                + "&offset=" + offset(page) + "&fields=" + LIST_FIELDS;
+        JSONObject response = new JSONObject(get(url));
+        return AuthorNames.keepWrittenBy(author, parseStories(response.optJSONArray("stories")), true);
     }
 }
